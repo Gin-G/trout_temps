@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gage detail — Trout Water Temperatures</title>
+<style>
+  :root {
+    --abyss: #0a1a1f;
+    --deep: #0f2730;
+    --slate: #163842;
+    --mist: #8fb3bd;
+    --paper: #eef4f2;
+    --safe: #4fb286;
+    --caution: #e0a458;
+    --danger: #d65a4a;
+    --line: rgba(143,179,189,0.18);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--abyss); color: var(--paper);
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  a.back {
+    display: inline-block; margin: 28px 0 0; color: var(--mist);
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-decoration: none;
+  }
+  a.back:hover { color: var(--safe); }
+
+  header { padding: 18px 0 26px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.24em; text-transform: uppercase; color: var(--mist);
+    margin-bottom: 12px;
+  }
+  h1 { font-size: clamp(26px, 4.5vw, 42px); font-weight: 400; line-height: 1.05; }
+  .sub {
+    margin-top: 10px; color: var(--mist);
+    font-family: ui-monospace, monospace; font-size: 13px;
+  }
+  .sub a { color: var(--mist); }
+
+  /* Current-reading hero card */
+  .now {
+    display: flex; gap: 30px; flex-wrap: wrap; align-items: baseline;
+    padding: 24px 0; border-bottom: 1px solid var(--line);
+  }
+  .now .big { font-family: ui-monospace, monospace; }
+  .now .big .v { font-size: 46px; line-height: 1; }
+  .now .big .l {
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--mist); margin-top: 8px;
+  }
+  .now .verdict {
+    margin-left: auto; align-self: center;
+    font-family: ui-monospace, monospace; font-size: 13px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 10px 18px; border-radius: 999px;
+  }
+  .verdict.safe { background: rgba(79,178,134,0.16); color: var(--safe); }
+  .verdict.caution { background: rgba(224,164,88,0.16); color: var(--caution); }
+  .verdict.danger { background: rgba(214,90,74,0.18); color: var(--danger); }
+
+  /* Charts */
+  .charts { padding: 12px 0 64px; }
+  .chart-card {
+    padding: 24px 0; border-bottom: 1px solid var(--line);
+  }
+  .chart-head {
+    display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px;
+  }
+  .chart-head h2 { font-size: 21px; font-weight: 400; }
+  .chart-head .range {
+    margin-left: auto; font-family: ui-monospace, monospace;
+    font-size: 12px; color: var(--mist);
+  }
+  .chart-head .unit {
+    font-family: ui-monospace, monospace; font-size: 12px; color: var(--mist);
+  }
+  .svgwrap { width: 100%; overflow: hidden; }
+  svg.line { width: 100%; height: 220px; display: block; }
+  .axis { stroke: var(--line); stroke-width: 1; }
+  .gridline { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.6; }
+  .axis-label {
+    fill: var(--mist); font-family: ui-monospace, monospace; font-size: 10px;
+  }
+  .threshold-line { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 4 3; }
+  .threshold-label { fill: var(--danger); font-family: ui-monospace, monospace; font-size: 10px; }
+  .plot { fill: none; stroke-width: 2; }
+  .plot.temp { stroke: var(--caution); }
+  .plot.flow { stroke: var(--safe); }
+  .plot.stage { stroke: #6ea8d8; }
+  .plot.turb { stroke: #b58fd8; }
+  .plot.do { stroke: #5fc9c0; }
+  .area { opacity: 0.10; }
+  .area.temp { fill: var(--caution); }
+  .area.flow { fill: var(--safe); }
+  .area.stage { fill: #6ea8d8; }
+  .area.turb { fill: #b58fd8; }
+  .area.do { fill: #5fc9c0; }
+
+  .state { padding: 70px 0; text-align: center; color: var(--mist); }
+  .state.err { color: var(--danger); }
+  .spinner {
+    width: 26px; height: 26px; border: 2px solid var(--line);
+    border-top-color: var(--safe); border-radius: 50%;
+    margin: 0 auto 16px; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 24px 0;
+    font-family: ui-monospace, monospace; font-size: 11px; color: var(--mist);
+  }
+  footer a { color: var(--mist); }
+  @media (max-width: 640px) {
+    .now .verdict { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="trout-temps.html">← All gages</a>
+</div>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">7-day history · USGS instantaneous values</div>
+    <h1 id="title">Loading gage…</h1>
+    <div class="sub" id="sub"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="now" id="now" style="display:none;"></div>
+  <div class="charts" id="charts">
+    <div class="state"><div class="spinner"></div>Pulling the last 7 days…</div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    Data: <a href="https://waterservices.usgs.gov" target="_blank" rel="noopener">USGS Instantaneous Values service</a>.
+    Charts show whatever this gage reports. Not every gage measures every parameter.
+    The 65°F line marks the coldwater trout recovery threshold.
+  </div>
+</footer>
+
+<script>
+// Parameter catalog: USGS code -> display config
+const PARAMS = [
+  { code: '00010', key: 'temp',  label: 'Water temperature', unit: '°F',  cls: 'temp',  convert: c => c * 9/5 + 32, dp: 1, threshold: 65 },
+  { code: '00060', key: 'flow',  label: 'Discharge (flow)',  unit: 'ft³/s', cls: 'flow', convert: v => v, dp: 0 },
+  { code: '00065', key: 'stage', label: 'Gage height',       unit: 'ft',  cls: 'stage', convert: v => v, dp: 2 },
+  { code: '63680', key: 'turb',  label: 'Turbidity',         unit: 'FNU', cls: 'turb',  convert: v => v, dp: 1 },
+  { code: '00300', key: 'do',    label: 'Dissolved oxygen',  unit: 'mg/L', cls: 'do',   convert: v => v, dp: 1 },
+];
+const codeList = PARAMS.map(p => p.code).join(',');
+
+const qs = new URLSearchParams(location.search);
+const site = qs.get('site');
+const nameHint = qs.get('name');
+
+const cToF = c => c * 9/5 + 32;
+function classifyF(f){ return f >= 65 ? 'danger' : f >= 60 ? 'caution' : 'safe'; }
+function verdictText(c){ return c==='danger'?'Not safe for trout':c==='caution'?'Caution':'Safe'; }
+
+if (nameHint) document.getElementById('title').textContent = nameHint;
+
+if (!site) {
+  document.getElementById('charts').innerHTML =
+    '<div class="state err">No gage specified. Go back and pick one from the list or map.</div>';
+} else {
+  load();
+}
+
+async function load() {
+  const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${site}`
+            + `&parameterCd=${codeList}&period=P7D`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('USGS service returned ' + res.status);
+    const json = await res.json();
+    const series = json.value?.timeSeries || [];
+    if (!series.length) throw new Error('No data returned for this gage in the last 7 days');
+
+    // header info from first series
+    const info = series[0].sourceInfo;
+    document.getElementById('title').textContent = info.siteName;
+    document.getElementById('sub').innerHTML =
+      `Gage ${site} · `
+      + `<a href="https://waterdata.usgs.gov/monitoring-location/${site}/" target="_blank" rel="noopener">USGS page ↗</a>`;
+
+    // group series by parameter code
+    const byCode = {};
+    series.forEach(ts => {
+      const code = ts.variable?.variableCode?.[0]?.value;
+      const pts = (ts.values?.[0]?.value || [])
+        .map(v => ({ t: new Date(v.dateTime), raw: parseFloat(v.value) }))
+        .filter(p => !isNaN(p.raw) && p.raw !== -999999);
+      if (pts.length) byCode[code] = pts;
+    });
+
+    renderNow(byCode);
+    renderCharts(byCode);
+  } catch (e) {
+    document.getElementById('charts').innerHTML =
+      `<div class="state err">Couldn't load this gage — ${e.message}.</div>`;
+  }
+}
+
+function renderNow(byCode) {
+  const tempPts = byCode['00010'];
+  if (!tempPts) return;
+  const lastC = tempPts[tempPts.length - 1].raw;
+  const f = cToF(lastC);
+  const cls = classifyF(f);
+  const now = document.getElementById('now');
+  const flowPts = byCode['00060'];
+  let flowHtml = '';
+  if (flowPts) {
+    const fl = flowPts[flowPts.length - 1].raw;
+    flowHtml = `<div class="big"><div class="v">${Math.round(fl).toLocaleString()}</div><div class="l">ft³/s flow</div></div>`;
+  }
+  now.innerHTML =
+    `<div class="big"><div class="v">${f.toFixed(1)}°F</div><div class="l">${lastC.toFixed(1)}°C · current temp</div></div>`
+    + flowHtml
+    + `<div class="verdict ${cls}">${verdictText(cls)}</div>`;
+  now.style.display = 'flex';
+}
+
+function renderCharts(byCode) {
+  const container = document.getElementById('charts');
+  const cards = [];
+  PARAMS.forEach(p => {
+    const pts = byCode[p.code];
+    if (!pts) return;
+    const data = pts.map(pt => ({ t: pt.t, v: p.convert(pt.raw) }));
+    cards.push(chartCard(p, data));
+  });
+  if (!cards.length) {
+    container.innerHTML = '<div class="state">This gage didn\'t report any of the tracked parameters in the last 7 days.</div>';
+    return;
+  }
+  container.innerHTML = cards.join('');
+}
+
+function chartCard(p, data) {
+  const W = 1000, H = 220, padL = 52, padR = 16, padT = 16, padB = 28;
+  const xs = data.map(d => d.t.getTime());
+  const ys = data.map(d => d.v);
+  let yMin = Math.min(...ys), yMax = Math.max(...ys);
+  // include threshold in range so the line is visible
+  if (p.threshold != null) { yMin = Math.min(yMin, p.threshold); yMax = Math.max(yMax, p.threshold); }
+  if (yMin === yMax) { yMin -= 1; yMax += 1; }
+  const pad = (yMax - yMin) * 0.1; yMin -= pad; yMax += pad;
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const sx = t => padL + (t - xMin) / (xMax - xMin || 1) * (W - padL - padR);
+  const sy = v => H - padB - (v - yMin) / (yMax - yMin || 1) * (H - padT - padB);
+
+  const linePath = data.map((d,i) => (i?'L':'M') + sx(d.t.getTime()).toFixed(1) + ' ' + sy(d.v).toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${sx(xMax).toFixed(1)} ${H-padB} L${sx(xMin).toFixed(1)} ${H-padB} Z`;
+
+  // y gridlines (4)
+  let grid = '';
+  for (let i=0;i<=4;i++){
+    const v = yMin + (yMax-yMin)*i/4;
+    const y = sy(v);
+    grid += `<line class="gridline" x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}"/>`;
+    grid += `<text class="axis-label" x="${padL-8}" y="${(y+3).toFixed(1)}" text-anchor="end">${v.toFixed(p.dp)}</text>`;
+  }
+  // x day labels
+  let xlab = '';
+  const dayMs = 86400000;
+  let d0 = new Date(xMin); d0.setHours(0,0,0,0);
+  for (let t=d0.getTime(); t<=xMax; t+=dayMs){
+    if (t < xMin) continue;
+    const x = sx(t);
+    xlab += `<line class="gridline" x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${H-padB}"/>`;
+    const lbl = new Date(t).toLocaleDateString(undefined,{month:'numeric',day:'numeric'});
+    xlab += `<text class="axis-label" x="${x.toFixed(1)}" y="${H-padB+16}" text-anchor="middle">${lbl}</text>`;
+  }
+  // threshold
+  let thr = '';
+  if (p.threshold != null && p.threshold >= yMin && p.threshold <= yMax){
+    const y = sy(p.threshold);
+    thr = `<line class="threshold-line" x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}"/>`
+        + `<text class="threshold-label" x="${W-padR}" y="${(y-5).toFixed(1)}" text-anchor="end">65°F trout threshold</text>`;
+  }
+
+  const last = data[data.length-1];
+  const range = `${new Date(xMin).toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${new Date(xMax).toLocaleDateString(undefined,{month:'short',day:'numeric'})}`;
+
+  return `<div class="chart-card">
+    <div class="chart-head">
+      <h2>${p.label}</h2>
+      <span class="unit">latest ${last.v.toFixed(p.dp)} ${p.unit}</span>
+      <span class="range">${range}</span>
+    </div>
+    <div class="svgwrap">
+      <svg class="line" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        ${grid}${xlab}
+        <path class="area ${p.cls}" d="${areaPath}"/>
+        <path class="plot ${p.cls}" d="${linePath}"/>
+        ${thr}
+      </svg>
+    </div>
+  </div>`;
+}
+</script>
+</body>
+</html>

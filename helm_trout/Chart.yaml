@@ -1,0 +1,12 @@
+apiVersion: v2
+name: trout-temps
+description: A Helm chart for a web application to get stream temperatures and other data
+type: application
+version: 0.1.1
+appVersion: "1.0.0"
+home: https://github.com/Gin-G/trout_temps
+sources:
+  - https://github.com/Gin-G/trout_temps
+maintainers:
+  - name: Gin-G
+    email: NickCo7@gmail.com

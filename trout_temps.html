@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hold the Line — Trout Water Temperatures</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --abyss: #0a1a1f;
+    --deep: #0f2730;
+    --slate: #163842;
+    --mist: #8fb3bd;
+    --paper: #eef4f2;
+    --safe: #4fb286;
+    --caution: #e0a458;
+    --danger: #d65a4a;
+    --line: rgba(143,179,189,0.18);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--abyss);
+    color: var(--paper);
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  header {
+    padding: 56px 0 28px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+  .eyebrow {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--mist); margin-bottom: 18px;
+  }
+  h1 {
+    font-size: clamp(34px, 6vw, 60px);
+    font-weight: 400; line-height: 1.02; letter-spacing: -0.01em;
+  }
+  h1 em { font-style: italic; color: var(--safe); }
+  .lede {
+    margin-top: 18px; max-width: 56ch; color: var(--mist);
+    font-size: 17px;
+  }
+  /* The threshold gauge — signature element */
+  .gauge {
+    margin-top: 34px; height: 56px; border-radius: 4px; position: relative;
+    background: linear-gradient(90deg,
+      var(--safe) 0%, var(--safe) 55%,
+      var(--caution) 62%, var(--caution) 70%,
+      var(--danger) 78%, var(--danger) 100%);
+    font-family: ui-monospace, monospace;
+  }
+  .gauge .mark {
+    position: absolute; top: -8px; bottom: -8px; width: 2px;
+    background: var(--paper); left: 70.7%;
+  }
+  .gauge .mark::after {
+    content: '65°F — recovery threshold';
+    position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+    white-space: nowrap; font-size: 11px; letter-spacing: 0.04em;
+    color: var(--paper);
+  }
+  .gauge .lo, .gauge .hi {
+    position: absolute; bottom: 6px; font-size: 11px; color: rgba(10,26,31,0.7);
+  }
+  .gauge .lo { left: 10px; } .gauge .hi { right: 10px; }
+
+  /* Controls */
+  .controls {
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    padding: 24px 0; border-bottom: 1px solid var(--line);
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-family: ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--mist);
+  }
+  select, input {
+    background: var(--deep); color: var(--paper);
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 9px 12px; font-family: inherit; font-size: 15px; min-width: 200px;
+  }
+  input::placeholder { color: rgba(143,179,189,0.5); }
+  button.refresh {
+    margin-left: auto; align-self: flex-end;
+    background: var(--safe); color: var(--abyss); border: none;
+    padding: 10px 20px; border-radius: 4px; cursor: pointer;
+    font-family: ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
+  }
+  button.refresh:hover { filter: brightness(1.08); }
+  button.refresh:disabled { opacity: 0.5; cursor: wait; }
+
+  /* Summary strip */
+  .summary {
+    display: flex; gap: 32px; padding: 22px 0; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .stat .n { font-size: 30px; line-height: 1; }
+  .stat .l {
+    font-family: ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--mist);
+    margin-top: 6px;
+  }
+  .stat.safe .n { color: var(--safe); }
+  .stat.caution .n { color: var(--caution); }
+  .stat.danger .n { color: var(--danger); }
+
+  /* Station list */
+  .stations { padding: 12px 0 64px; }
+  .station {
+    display: grid; grid-template-columns: 1fr auto auto;
+    gap: 20px; align-items: center;
+    padding: 18px 16px; border-bottom: 1px solid var(--line);
+    transition: background 0.15s;
+  }
+  .station:hover { background: var(--deep); }
+  .station .name { font-size: 17px; }
+  .station .name a { color: var(--paper); text-decoration: none; }
+  .station .name a:hover { color: var(--safe); }
+  .station .meta {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    color: var(--mist); margin-top: 3px;
+  }
+  .temp { font-family: ui-monospace, monospace; text-align: right; }
+  .temp .f { font-size: 26px; line-height: 1; }
+  .temp .c { font-size: 12px; color: var(--mist); margin-top: 3px; }
+  .badge {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+    text-align: center; min-width: 96px;
+  }
+  .badge.safe { background: rgba(79,178,134,0.16); color: var(--safe); }
+  .badge.caution { background: rgba(224,164,88,0.16); color: var(--caution); }
+  .badge.danger { background: rgba(214,90,74,0.18); color: var(--danger); }
+
+  /* View toggle */
+  .viewtoggle {
+    display: inline-flex; border: 1px solid var(--line); border-radius: 4px;
+    overflow: hidden; margin: 18px 0 0;
+  }
+  .viewtoggle button {
+    background: var(--deep); color: var(--mist); border: none; cursor: pointer;
+    padding: 8px 18px; font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .viewtoggle button.active { background: var(--safe); color: var(--abyss); font-weight: 600; }
+
+  /* Map */
+  #map {
+    height: 540px; width: 100%; border-radius: 6px; margin: 12px 0 0;
+    border: 1px solid var(--line); background: var(--deep);
+  }
+  .leaflet-container { font-family: ui-monospace, monospace; }
+  .pin {
+    width: 46px; height: 46px; border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg); border: 2px solid rgba(0,0,0,0.35);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .pin span {
+    transform: rotate(45deg); font-family: ui-monospace, monospace;
+    font-size: 12px; font-weight: 700; color: #0a1a1f; line-height: 1;
+  }
+  .pin.safe { background: var(--safe); }
+  .pin.caution { background: var(--caution); }
+  .pin.danger { background: var(--danger); }
+  .leaflet-popup-content-wrapper {
+    background: var(--slate); color: var(--paper); border-radius: 6px;
+  }
+  .leaflet-popup-tip { background: var(--slate); }
+  .leaflet-popup-content { margin: 12px 14px; font-family: inherit; }
+  .leaflet-popup-content .pname { font-size: 15px; margin-bottom: 4px; }
+  .leaflet-popup-content .ptemp { font-family: ui-monospace, monospace; font-size: 13px; }
+  .leaflet-popup-content a { color: var(--safe); font-family: ui-monospace, monospace; font-size: 11px; }
+
+  .state { padding: 60px 0; text-align: center; color: var(--mist); }
+  .state.err { color: var(--danger); }
+  .spinner {
+    width: 26px; height: 26px; border: 2px solid var(--line);
+    border-top-color: var(--safe); border-radius: 50%;
+    margin: 0 auto 16px; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  footer {
+    border-top: 1px solid var(--line); padding: 24px 0;
+    font-family: ui-monospace, monospace; font-size: 11px; color: var(--mist);
+  }
+  footer a { color: var(--mist); }
+  @media (max-width: 640px) {
+    .station { grid-template-columns: 1fr auto; }
+    .station .badge { grid-column: 1 / -1; justify-self: start; }
+    button.refresh { margin-left: 0; width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Live USGS streamflow · parameter 00010</div>
+    <h1>Know before you<br><em>release the fish.</em></h1>
+    <p class="lede">Above 65°F, trout can't get the oxygen they need to recover from a fight. This pulls current water temperatures from USGS gages so you can pick a cold stretch — or call it a day.</p>
+    <div class="gauge" aria-hidden="true">
+      <span class="lo">45°F</span>
+      <span class="mark"></span>
+      <span class="hi">73°F</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <div class="field">
+      <label for="state">State</label>
+      <select id="state">
+        <option value="co">Colorado</option>
+        <option value="mt">Montana</option>
+        <option value="wy">Wyoming</option>
+        <option value="id">Idaho</option>
+        <option value="ut">Utah</option>
+        <option value="nm">New Mexico</option>
+        <option value="ca">California</option>
+        <option value="or">Oregon</option>
+        <option value="wa">Washington</option>
+        <option value="pa">Pennsylvania</option>
+        <option value="ny">New York</option>
+        <option value="nc">North Carolina</option>
+        <option value="vt">Vermont</option>
+        <option value="mi">Michigan</option>
+        <option value="wi">Wisconsin</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="filter">Filter by river or gage name</label>
+      <input id="filter" type="text" placeholder="e.g. South Platte, Frying Pan…">
+    </div>
+    <div class="field">
+      <label for="sort">Sort</label>
+      <select id="sort">
+        <option value="temp">Coldest first</option>
+        <option value="tempd">Warmest first</option>
+        <option value="name">Name (A–Z)</option>
+      </select>
+    </div>
+    <button class="refresh" id="refresh">Refresh</button>
+  </div>
+
+  <div class="summary" id="summary" style="display:none;">
+    <div class="stat safe"><div class="n" id="cSafe">—</div><div class="l">Safe · under 60°F</div></div>
+    <div class="stat caution"><div class="n" id="cCaution">—</div><div class="l">Caution · 60–65°F</div></div>
+    <div class="stat danger"><div class="n" id="cDanger">—</div><div class="l">Stop · over 65°F</div></div>
+    <div class="stat"><div class="n" id="cTotal">—</div><div class="l">Gages reporting</div></div>
+  </div>
+
+  <div class="viewtoggle" id="viewtoggle" style="display:none;">
+    <button data-view="list" class="active">List</button>
+    <button data-view="map">Map</button>
+  </div>
+
+  <div id="map" style="display:none;"></div>
+
+  <div class="stations" id="stations">
+    <div class="state"><div class="spinner"></div>Reading the gages…</div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    Data: <a href="https://waterservices.usgs.gov" target="_blank" rel="noopener">USGS Instantaneous Values service</a> · parameter 00010 (water temperature). Readings are point-in-time at the gage and may differ from where you stand on the river. The 65°F guidance is a widely used rule of thumb for coldwater trout; check local regulations and any voluntary fishing closures.
+  </div>
+</footer>
+
+<script>
+const CELSIUS_THRESHOLD = 65; // handled in F after conversion
+const cToF = c => c * 9/5 + 32;
+
+const els = {
+  state: document.getElementById('state'),
+  filter: document.getElementById('filter'),
+  sort: document.getElementById('sort'),
+  refresh: document.getElementById('refresh'),
+  stations: document.getElementById('stations'),
+  summary: document.getElementById('summary'),
+};
+let data = [];
+let currentView = 'list';
+let map = null, markerLayer = null;
+
+function classify(f) {
+  if (f >= 65) return 'danger';
+  if (f >= 60) return 'caution';
+  return 'safe';
+}
+function badgeText(c) {
+  return c === 'danger' ? 'Not safe for trout' : c === 'caution' ? 'Caution' : 'Safe';
+}
+
+async function load() {
+  const st = els.state.value;
+  els.refresh.disabled = true;
+  els.summary.style.display = 'none';
+  els.stations.innerHTML = '<div class="state"><div class="spinner"></div>Reading the gages…</div>';
+  const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&stateCd=${st}`
+            + `&parameterCd=00010&siteStatus=active`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('USGS service returned ' + res.status);
+    const json = await res.json();
+    const series = (json.value && json.value.timeSeries) || [];
+    data = series.map(ts => {
+      const vals = ts.values?.[0]?.value || [];
+      const last = vals[vals.length - 1];
+      if (!last || last.value === '' || last.value === '-999999') return null;
+      const c = parseFloat(last.value);
+      if (isNaN(c)) return null;
+      const f = cToF(c);
+      const geo = ts.sourceInfo.geoLocation?.geogLocation || {};
+      return {
+        name: ts.sourceInfo.siteName,
+        site: ts.sourceInfo.siteCode?.[0]?.value,
+        lat: parseFloat(geo.latitude),
+        lon: parseFloat(geo.longitude),
+        time: last.dateTime,
+        c, f, cls: classify(f),
+      };
+    }).filter(Boolean);
+    // de-dupe by site (some sites report multiple sub-series)
+    const seen = new Set();
+    data = data.filter(d => seen.has(d.site) ? false : seen.add(d.site));
+    render();
+    document.getElementById('viewtoggle').style.display = 'inline-flex';
+  } catch (e) {
+    els.stations.innerHTML = `<div class="state err">Couldn't reach the USGS service — ${e.message}.<br>`
+      + `It may be temporarily down, or your network may block cross-site requests. Try Refresh.</div>`;
+  } finally {
+    els.refresh.disabled = false;
+  }
+}
+
+function render() {
+  const q = els.filter.value.trim().toLowerCase();
+  let rows = data.filter(d => !q || d.name.toLowerCase().includes(q));
+  const s = els.sort.value;
+  rows.sort((a,b) =>
+    s === 'name' ? a.name.localeCompare(b.name)
+    : s === 'tempd' ? b.f - a.f
+    : a.f - b.f);
+
+  // summary on full set (not filtered) so counts reflect the state
+  const counts = { safe:0, caution:0, danger:0 };
+  data.forEach(d => counts[d.cls]++);
+  document.getElementById('cSafe').textContent = counts.safe;
+  document.getElementById('cCaution').textContent = counts.caution;
+  document.getElementById('cDanger').textContent = counts.danger;
+  document.getElementById('cTotal').textContent = data.length;
+  els.summary.style.display = 'flex';
+
+  if (!rows.length) {
+    els.stations.innerHTML = '<div class="state">No gages match that filter.</div>';
+    if (markerLayer) markerLayer.clearLayers();
+    return;
+  }
+  els.stations.innerHTML = rows.map(d => {
+    const ago = timeAgo(d.time);
+    const detailLink = `detail.html?site=${d.site}&name=${encodeURIComponent(d.name)}`;
+    const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
+    return `<div class="station">
+      <div>
+        <div class="name"><a href="${detailLink}">${d.name}</a></div>
+        <div class="meta">Gage ${d.site} · updated ${ago} · <a href="${usgsLink}" target="_blank" rel="noopener" style="color:var(--mist)">USGS ↗</a></div>
+      </div>
+      <div class="temp">
+        <div class="f">${d.f.toFixed(1)}°F</div>
+        <div class="c">${d.c.toFixed(1)}°C</div>
+      </div>
+      <div class="badge ${d.cls}">${badgeText(d.cls)}</div>
+    </div>`;
+  }).join('');
+
+  renderMap(rows);
+}
+
+function renderMap(rows) {
+  const geo = rows.filter(d => !isNaN(d.lat) && !isNaN(d.lon));
+  if (!map) {
+    map = L.map('map', { scrollWheelZoom: false }).setView([39, -105.5], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19,
+    }).addTo(map);
+    markerLayer = L.layerGroup().addTo(map);
+  }
+  markerLayer.clearLayers();
+  if (!geo.length) return;
+  const bounds = [];
+  geo.forEach(d => {
+    const icon = L.divIcon({
+      className: '', iconSize: [46, 46], iconAnchor: [23, 46], popupAnchor: [0, -44],
+      html: `<div class="pin ${d.cls}"><span>${Math.round(d.f)}°</span></div>`,
+    });
+    const detailLink = `detail.html?site=${d.site}&name=${encodeURIComponent(d.name)}`;
+    const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
+    L.marker([d.lat, d.lon], { icon })
+      .bindPopup(
+        `<div class="pname">${d.name}</div>`
+        + `<div class="ptemp">${d.f.toFixed(1)}°F · ${d.c.toFixed(1)}°C — ${badgeText(d.cls)}</div>`
+        + `<a href="${detailLink}">7-day history →</a><br>`
+        + `<a href="${usgsLink}" target="_blank" rel="noopener">USGS gage ${d.site} ↗</a>`)
+      .addTo(markerLayer);
+    bounds.push([d.lat, d.lon]);
+  });
+  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+  if (currentView === 'map') setTimeout(() => map.invalidateSize(), 0);
+}
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('#viewtoggle button').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === v));
+  document.getElementById('map').style.display = v === 'map' ? 'block' : 'none';
+  els.stations.style.display = v === 'map' ? 'none' : 'block';
+  if (v === 'map' && map) setTimeout(() => map.invalidateSize(), 0);
+}
+
+function timeAgo(iso) {
+  const t = new Date(iso), now = new Date();
+  const m = Math.round((now - t) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  const h = Math.round(m/60);
+  if (h < 24) return h + ' hr ago';
+  return Math.round(h/24) + ' d ago';
+}
+
+els.refresh.addEventListener('click', load);
+els.state.addEventListener('change', load);
+els.filter.addEventListener('input', render);
+els.sort.addEventListener('change', render);
+document.querySelectorAll('#viewtoggle button').forEach(b =>
+  b.addEventListener('click', () => setView(b.dataset.view)));
+load();
+</script>
+</body>
+</html>

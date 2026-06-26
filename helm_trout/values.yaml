@@ -1,0 +1,7 @@
+app:
+  name: trout-temps
+  instances: 1
+  group: trout-temps
+  fqdn: trout-temps.nickknows.net
+  image: docker.io/ncging/trout-temps:2026-06-26.20.46
+  port: 80
