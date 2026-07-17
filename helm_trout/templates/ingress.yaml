@@ -7,10 +7,9 @@ metadata:
     app:  {{ .Values.app.name }}
     group: {{ .Values.app.group }}
   annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      nginx.ingress.kubernetes.io/ssl-passthrough: "false"
       cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
       external-dns.alpha.kubernetes.io/target: "8.44.158.127"
+      traefik.ingress.kubernetes.io/router.middlewares: "{{ .Release.Namespace }}-{{ .Values.app.name }}-redirect-https@kubernetescrd"
 spec:
   ingressClassName: traefik
   tls:
