@@ -4,4 +4,4 @@ app:
   group: trout-temps
   fqdn: trout-temps.nickknows.net
   image: docker.io/ncging/trout-temps:2026-07-16.21.26
-  port: 80
+  port: 8080
