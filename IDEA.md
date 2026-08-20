@@ -88,3 +88,4 @@ Live at https://trout-temps.nickknows.net. Everything talks to USGS directly fro
 - [x] Site logo beside the dashboard headline, shared with the favicon and apple-touch icon
 - [x] Re-apply the security headers inside every location block, since nginx drops inherited add_header
 - [x] Re-fit the map when the map view is opened, so pins are not framed by a zero-size container
+- [x] Call out the per-species angling thresholds from the Keep Fish Wet review on the dashboard
