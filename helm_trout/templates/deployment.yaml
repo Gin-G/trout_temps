@@ -31,10 +31,14 @@ spec:
         - containerPort: {{ .Values.app.port }}
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
           capabilities:
             drop:
             - ALL
+          # Not readOnlyRootFilesystem: the base image's entrypoint patches its
+          # own config at startup — 10-listen-on-ipv6-by-default.sh adds the
+          # `listen [::]:8080` line and 30-tune-worker-processes.sh sizes the
+          # worker count to the CPU limit. Both fail silently on a read-only
+          # rootfs, leaving the container IPv4-only with a worker per host core.
         resources:
           {{- toYaml .Values.app.resources | nindent 10 }}
         livenessProbe:
@@ -47,9 +51,8 @@ spec:
             path: {{ .Values.app.probes.path }}
             port: {{ .Values.app.port }}
           {{- toYaml .Values.app.probes.readiness | nindent 10 }}
-        # Everything nginx writes at runtime lives here, so the image itself
-        # can stay read-only: the unprivileged image keeps its pid file and
-        # all temp paths under /tmp.
+        # The unprivileged image keeps its pid file and all temp paths under
+        # /tmp; give it real volumes rather than writing into the image layer.
         volumeMounts:
         - name: tmp
           mountPath: /tmp
