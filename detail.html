@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gage detail — Trout Water Temperatures</title>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-08D62NHKX9"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-08D62NHKX9');
+</script>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/logo.png" type="image/png">
+<link rel="apple-touch-icon" href="/logo.png">
 <style>
   :root {
     --abyss: #0a1a1f;
@@ -102,6 +114,12 @@
   .area.turb { fill: #b58fd8; }
   .area.do { fill: #5fc9c0; }
 
+  /* Announced to screen readers, invisible on screen. */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0;
+    margin: -1px; overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; border: 0;
+  }
   .state { padding: 70px 0; text-align: center; color: var(--mist); }
   .state.err { color: var(--danger); }
   .spinner {
@@ -124,7 +142,7 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="/">← All gages</a>
+  <a class="back" id="back" href="/">← All gages</a>
 </div>
 
 <header>
@@ -136,6 +154,7 @@
 </header>
 
 <div class="wrap">
+  <p class="sr-only" id="status" role="status" aria-live="polite">Loading the last 7 days for this gage…</p>
   <div class="now" id="now" style="display:none;"></div>
   <div class="charts" id="charts">
     <div class="state"><div class="spinner"></div>Pulling the last 7 days…</div>
@@ -160,22 +179,44 @@ const PARAMS = [
   { code: '00300', key: 'do',    label: 'Dissolved oxygen',  unit: 'mg/L', cls: 'do',   convert: v => v, dp: 1 },
 ];
 const codeList = PARAMS.map(p => p.code).join(',');
+const CHART = { W: 1000, H: 220, padL: 52, padR: 16, padT: 16, padB: 28 };
 
 const qs = new URLSearchParams(location.search);
 const site = qs.get('site');
 const nameHint = qs.get('name');
+const fromState = qs.get('state');
 
 const cToF = c => c * 9/5 + 32;
 function classifyF(f){ return f >= 65 ? 'danger' : f >= 60 ? 'caution' : 'safe'; }
 function verdictText(c){ return c==='danger'?'Not safe for trout':c==='caution'?'Caution':'Safe'; }
+// Screen readers get the loading/error narration the spinner implies.
+function announce(msg){ document.getElementById('status').textContent = msg; }
 
 if (nameHint) document.getElementById('title').textContent = nameHint;
+// Return to the state the visitor was browsing, not whatever the list defaults to.
+if (/^[a-z]{2}$/.test(fromState || '')) {
+  document.getElementById('back').href = `/?state=${fromState}`;
+}
 
 if (!site) {
   document.getElementById('charts').innerHTML =
     '<div class="state err">No gage specified. Go back and pick one from the list or map.</div>';
+  announce('No gage specified. Go back and pick one from the list or map.');
 } else {
   load();
+}
+
+// Group a USGS payload into readings per parameter code, dropping no-data points.
+function groupByCode(series) {
+  const byCode = {};
+  (series || []).forEach(ts => {
+    const code = ts.variable?.variableCode?.[0]?.value;
+    const pts = (ts.values?.[0]?.value || [])
+      .map(v => ({ t: new Date(v.dateTime), raw: parseFloat(v.value) }))
+      .filter(p => !isNaN(p.raw) && p.raw !== -999999);
+    if (pts.length) byCode[code] = pts;
+  });
+  return byCode;
 }
 
 async function load() {
@@ -195,21 +236,13 @@ async function load() {
       `Gage ${site} · `
       + `<a href="https://waterdata.usgs.gov/monitoring-location/${site}/" target="_blank" rel="noopener">USGS page ↗</a>`;
 
-    // group series by parameter code
-    const byCode = {};
-    series.forEach(ts => {
-      const code = ts.variable?.variableCode?.[0]?.value;
-      const pts = (ts.values?.[0]?.value || [])
-        .map(v => ({ t: new Date(v.dateTime), raw: parseFloat(v.value) }))
-        .filter(p => !isNaN(p.raw) && p.raw !== -999999);
-      if (pts.length) byCode[code] = pts;
-    });
-
+    const byCode = groupByCode(series);
     renderNow(byCode);
     renderCharts(byCode);
   } catch (e) {
     document.getElementById('charts').innerHTML =
       `<div class="state err">Couldn't load this gage — ${e.message}.</div>`;
+    announce(`Couldn't load this gage — ${e.message}.`);
   }
 }
 
@@ -231,6 +264,7 @@ function renderNow(byCode) {
     + flowHtml
     + `<div class="verdict ${cls}">${verdictText(cls)}</div>`;
   now.style.display = 'flex';
+  announce(`Current water temperature ${f.toFixed(1)} degrees Fahrenheit — ${verdictText(cls)}.`);
 }
 
 function renderCharts(byCode) {
@@ -244,13 +278,15 @@ function renderCharts(byCode) {
   });
   if (!cards.length) {
     container.innerHTML = '<div class="state">This gage didn\'t report any of the tracked parameters in the last 7 days.</div>';
+    announce('This gage didn\'t report any of the tracked parameters in the last 7 days.');
     return;
   }
   container.innerHTML = cards.join('');
 }
 
-function chartCard(p, data) {
-  const W = 1000, H = 220, padL = 52, padR = 16, padT = 16, padB = 28;
+// Map data values to SVG coordinates. Separated out so it can be tested directly.
+function chartScales(p, data, dims) {
+  const { W, H, padL, padR, padT, padB } = dims;
   const xs = data.map(d => d.t.getTime());
   const ys = data.map(d => d.v);
   let yMin = Math.min(...ys), yMax = Math.max(...ys);
@@ -259,8 +295,16 @@ function chartCard(p, data) {
   if (yMin === yMax) { yMin -= 1; yMax += 1; }
   const pad = (yMax - yMin) * 0.1; yMin -= pad; yMax += pad;
   const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const sx = t => padL + (t - xMin) / (xMax - xMin || 1) * (W - padL - padR);
-  const sy = v => H - padB - (v - yMin) / (yMax - yMin || 1) * (H - padT - padB);
+  return {
+    yMin, yMax, xMin, xMax,
+    sx: t => padL + (t - xMin) / (xMax - xMin || 1) * (W - padL - padR),
+    sy: v => H - padB - (v - yMin) / (yMax - yMin || 1) * (H - padT - padB),
+  };
+}
+
+function chartCard(p, data) {
+  const { W, H, padL, padR, padT, padB } = CHART;
+  const { yMin, yMax, xMin, xMax, sx, sy } = chartScales(p, data, CHART);
 
   const linePath = data.map((d,i) => (i?'L':'M') + sx(d.t.getTime()).toFixed(1) + ' ' + sy(d.v).toFixed(1)).join(' ');
   const areaPath = linePath + ` L${sx(xMax).toFixed(1)} ${H-padB} L${sx(xMin).toFixed(1)} ${H-padB} Z`;
@@ -302,7 +346,7 @@ function chartCard(p, data) {
       <span class="range">${range}</span>
     </div>
     <div class="svgwrap">
-      <svg class="line" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <svg class="line" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${p.label} over the last 7 days, latest ${last.v.toFixed(p.dp)} ${p.unit}">
         ${grid}${xlab}
         <path class="area ${p.cls}" d="${areaPath}"/>
         <path class="plot ${p.cls}" d="${linePath}"/>

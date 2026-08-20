@@ -1,6 +1,6 @@
 ---
-status: active
-progress: 80
+status: done
+progress: 100
 ---
 
 # Trout Temps
@@ -48,7 +48,7 @@ HTML comments are stripped on read, so this block never reaches the board.
 
 Water-temperature dashboard for fly fishers: pulls live USGS gage readings (parameter 00010) and flags each river safe, caution or stop against the 65°F coldwater-trout recovery threshold, so you know whether to fish a stretch or leave it alone. Two static pages with no backend — a state-wide list/map view and a per-gage detail page with 7-day charts for temperature, discharge, gage height, turbidity and dissolved oxygen — served by nginx-unprivileged on K3s.
 
-Live at https://trout-temps.nickknows.net. Everything talks to USGS directly from the browser, so there is no API key, no database and nothing to keep in sync; the CSP is pinned to the USGS, unpkg and CARTO origins the pages actually use. The remaining work is hardening and polish rather than new capability — the back link on the detail page is broken, the deployment has no probes or resource limits, and Leaflet still comes from a CDN.
+Live at https://trout-temps.nickknows.net. Everything talks to USGS directly from the browser, so there is no API key, no database and nothing to keep in sync; Leaflet is vendored into the image, and the CSP is pinned to the USGS, CARTO and Google Analytics origins the pages actually use. The deployment runs unprivileged and read-only on K3s with probes and resource limits, and the page logic — classification, USGS parsing, chart scaling, caching, clustering — is covered by a node --test suite that runs the shipped inline scripts.
 
 ## Todos
 
@@ -71,16 +71,20 @@ Live at https://trout-temps.nickknows.net. Everything talks to USGS directly fro
 - [x] Fix the 502 by matching the service port to nginx-unprivileged's 8080
 - [x] Move the ingress from the nginx class to traefik to match the cluster
 - [x] Fix the detail page back link, which points at trout-temps.html and 404s — it should be /
-- [ ] Add liveness and readiness probes on /healthz, which the container serves but nothing checks
-- [ ] Add resource requests and limits and a securityContext to the deployment
-- [ ] Make the CI Helm bump tolerate an unchanged tag, since git commit -a fails the job on an empty diff
-- [ ] Add a favicon from idea_logo.png so every page load stops 404ing on /favicon.ico
-- [ ] Drop the unused CELSIUS_THRESHOLD constant, which holds a Fahrenheit value and is never read
-- [ ] Self-host Leaflet and the basemap CSS so the CSP can drop unpkg entirely
-- [ ] Remember the last selected state in localStorage instead of always opening on Colorado
-- [ ] Carry the selected state back from the detail page so "All gages" returns to where you were
-- [ ] Cluster or thin the map pins in states where gages sit on top of each other
-- [ ] Add real tests for classify, the USGS response parsing and the chart scaling, not just a syntax parse
-- [ ] Cache USGS responses briefly in the page so a filter or sort change stops refetching the state
-- [ ] Announce loading and error states to screen readers with aria-live
-- [ ] Bump the Helm chart version in CI alongside the image tag
+- [x] Add liveness and readiness probes on /healthz, which the container serves but nothing checks
+- [x] Add resource requests and limits and a securityContext to the deployment
+- [x] Make the CI Helm bump tolerate an unchanged tag, since git commit -a fails the job on an empty diff
+- [x] Add a favicon from idea_logo.png so every page load stops 404ing on /favicon.ico
+- [x] Drop the unused CELSIUS_THRESHOLD constant, which holds a Fahrenheit value and is never read
+- [x] Self-host Leaflet and the basemap CSS so the CSP can drop unpkg entirely
+- [x] Remember the last selected state in localStorage instead of always opening on Colorado
+- [x] Carry the selected state back from the detail page so "All gages" returns to where you were
+- [x] Cluster or thin the map pins in states where gages sit on top of each other
+- [x] Add real tests for classify, the USGS response parsing and the chart scaling, not just a syntax parse
+- [x] Cache USGS responses briefly in the page so a filter or sort change stops refetching the state
+- [x] Announce loading and error states to screen readers with aria-live
+- [x] Bump the Helm chart version in CI alongside the image tag
+- [x] Google Analytics (gtag.js) on both pages, with the CSP openings it needs
+- [x] Site logo beside the dashboard headline, shared with the favicon and apple-touch icon
+- [x] Re-apply the security headers inside every location block, since nginx drops inherited add_header
+- [x] Re-fit the map when the map view is opened, so pins are not framed by a zero-size container

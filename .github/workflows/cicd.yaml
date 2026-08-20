@@ -9,8 +9,14 @@ on:
       - main
     paths:
       - '*.html'
+      - '*.png'
+      - '*.ico'
       - nginx.conf
+      - security-headers.conf
       - Dockerfile
+      - 'vendor/**'
+      - 'tests/**'
+      - .github/workflows/cicd.yaml
   workflow_dispatch:
 
 jobs:
@@ -19,14 +25,19 @@ jobs:
     steps:
       - name: Check out the code repository
         uses: actions/checkout@v4
-      - name: Validate HTML/JS and nginx config
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run the page-logic tests
+        # The suite pulls the inline page scripts out of the HTML and runs them,
+        # so a syntax error fails here too.
+        run: node --test tests/*.test.mjs
+      - name: Lint nginx config
         run: |
-          # Fail fast on broken JS in the page scripts (no app runtime to test).
-          for f in trout_temps.html detail.html; do
-            node -e "const fs=require('fs');const h=fs.readFileSync('$f','utf8');const m=h.match(/<script>([\s\S]*?)<\/script>/);if(m){new Function(m[1]);}console.log('$f OK');"
-          done
-          # Lint nginx.conf inside the same base image we ship.
-          docker run --rm -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+          docker run --rm \
+            -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$PWD/security-headers.conf:/etc/nginx/security-headers.conf:ro" \
             nginxinc/nginx-unprivileged:1.27-alpine nginx -t
 
   build-image-update-helm:
@@ -56,9 +67,25 @@ jobs:
             ncging/trout-temps:${{ steps.date.outputs.date }}
       - name: Update Helm chart with new image
         run: |
-          sed -i -E "s|image: docker.io/ncging/trout-temps:[^[:space:]]+|image: docker.io/ncging/trout-temps:${{ steps.date.outputs.date }}|" helm_trout/values.yaml
+          set -euo pipefail
+          TAG='${{ steps.date.outputs.date }}'
+          sed -i -E "s|image: docker.io/ncging/trout-temps:[^[:space:]]+|image: docker.io/ncging/trout-temps:${TAG}|" helm_trout/values.yaml
+          # A new image is a new chart release: bump the patch version with it,
+          # and track the image in appVersion.
+          CHART_VERSION=$(awk '/^version:/ {print $2; exit}' helm_trout/Chart.yaml)
+          NEXT=$(echo "$CHART_VERSION" | awk -F. '{ printf "%d.%d.%d", $1, $2, $3 + 1 }')
+          sed -i -E "s|^version: .*|version: ${NEXT}|" helm_trout/Chart.yaml
+          sed -i -E "s|^appVersion: .*|appVersion: \"${TAG}\"|" helm_trout/Chart.yaml
+          echo "chart ${CHART_VERSION} -> ${NEXT}, image ${TAG}"
       - name: Push changes to GitHub
         run: |
+          set -euo pipefail
+          # Re-running against an unchanged tree leaves nothing to commit, and
+          # `git commit` treats that as a failure — so check first.
+          if git diff --quiet -- helm_trout; then
+            echo "Helm chart already up to date; nothing to push."
+            exit 0
+          fi
           git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
           git config --global user.name "$GITHUB_ACTOR"
           git commit -a -m "Image build and push successful, updated Helm chart to use new image"

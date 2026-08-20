@@ -4,8 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hold the Line — Trout Water Temperatures</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-08D62NHKX9"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-08D62NHKX9');
+</script>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/logo.png" type="image/png">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<script src="/vendor/leaflet/leaflet.js"></script>
 <style>
   :root {
     --abyss: #0a1a1f;
@@ -39,6 +51,10 @@
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase;
     color: var(--mist); margin-bottom: 18px;
+  }
+  .titlerow { display: flex; align-items: center; gap: 22px; }
+  .titlerow .logo {
+    width: 104px; height: 104px; flex: none; border-radius: 14px;
   }
   h1 {
     font-size: clamp(34px, 6vw, 60px);
@@ -171,6 +187,12 @@
     transform: rotate(45deg); font-family: ui-monospace, monospace;
     font-size: 12px; font-weight: 700; color: #0a1a1f; line-height: 1;
   }
+  .pin.cluster {
+    border-radius: 50%; transform: none; width: 44px; height: 44px;
+    flex-direction: column; gap: 1px;
+  }
+  .pin.cluster span { transform: none; font-size: 13px; }
+  .pin.cluster .sub { font-size: 8px; letter-spacing: 0.06em; opacity: 0.75; }
   .pin.safe { background: var(--safe); }
   .pin.caution { background: var(--caution); }
   .pin.danger { background: var(--danger); }
@@ -183,6 +205,12 @@
   .leaflet-popup-content .ptemp { font-family: ui-monospace, monospace; font-size: 13px; }
   .leaflet-popup-content a { color: var(--safe); font-family: ui-monospace, monospace; font-size: 11px; }
 
+  /* Announced to screen readers, invisible on screen. */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0;
+    margin: -1px; overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; border: 0;
+  }
   .state { padding: 60px 0; text-align: center; color: var(--mist); }
   .state.err { color: var(--danger); }
   .spinner {
@@ -197,6 +225,8 @@
   }
   footer a { color: var(--mist); }
   @media (max-width: 640px) {
+    .titlerow { gap: 14px; }
+    .titlerow .logo { width: 56px; height: 56px; }
     .station { grid-template-columns: 1fr auto; }
     .station .badge { grid-column: 1 / -1; justify-self: start; }
     button.refresh { margin-left: 0; width: 100%; }
@@ -208,7 +238,10 @@
 <header>
   <div class="wrap">
     <div class="eyebrow">Live USGS streamflow · parameter 00010</div>
-    <h1>Know before you<br><em>release the fish.</em></h1>
+    <div class="titlerow">
+      <img class="logo" src="/logo.png" alt="Trout Temps" width="104" height="104">
+      <h1>Know before you<br><em>release the fish.</em></h1>
+    </div>
     <p class="lede">Above 65°F, trout can't get the oxygen they need to recover from a fight. This pulls current water temperatures from USGS gages so you can pick a cold stretch — or call it a day.</p>
     <div class="gauge" aria-hidden="true">
       <span class="lo">45°F</span>
@@ -269,6 +302,8 @@
 
   <div id="map" style="display:none;"></div>
 
+  <p class="sr-only" id="status" role="status" aria-live="polite"></p>
+
   <div class="stations" id="stations">
     <div class="state"><div class="spinner"></div>Reading the gages…</div>
   </div>
@@ -281,8 +316,10 @@
 </footer>
 
 <script>
-const CELSIUS_THRESHOLD = 65; // handled in F after conversion
 const cToF = c => c * 9/5 + 32;
+// A state's readings are good for this long before we ask USGS again.
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const STATE_KEY = 'troutTemps.state';
 
 const els = {
   state: document.getElementById('state'),
@@ -291,10 +328,13 @@ const els = {
   refresh: document.getElementById('refresh'),
   stations: document.getElementById('stations'),
   summary: document.getElementById('summary'),
+  status: document.getElementById('status'),
 };
 let data = [];
 let currentView = 'list';
 let map = null, markerLayer = null;
+let mapRows = [];
+const cache = new Map();  // stateCd -> { at, rows }
 
 function classify(f) {
   if (f >= 65) return 'danger';
@@ -304,44 +344,85 @@ function classify(f) {
 function badgeText(c) {
   return c === 'danger' ? 'Not safe for trout' : c === 'caution' ? 'Caution' : 'Safe';
 }
+// Worst band wins, so a cluster is never friendlier than the gages inside it.
+function worstClass(rows) {
+  return rows.some(d => d.cls === 'danger') ? 'danger'
+       : rows.some(d => d.cls === 'caution') ? 'caution' : 'safe';
+}
+// Screen readers get the loading/error/result narration the visuals imply.
+function announce(msg) { els.status.textContent = msg; }
 
-async function load() {
+function stateName(code) {
+  const opt = [...els.state.options].find(o => o.value === code);
+  return opt ? opt.text : code;
+}
+function isKnownState(code) {
+  return !!code && [...els.state.options].some(o => o.value === code);
+}
+// ?state= (coming back from a detail page) beats the remembered state.
+function initialState() {
+  const fromUrl = new URLSearchParams(location.search).get('state');
+  if (isKnownState(fromUrl)) return fromUrl;
+  let stored = null;
+  try { stored = localStorage.getItem(STATE_KEY); } catch (e) { /* storage blocked */ }
+  return isKnownState(stored) ? stored : els.state.value;
+}
+function rememberState(code) {
+  try { localStorage.setItem(STATE_KEY, code); } catch (e) { /* storage blocked */ }
+}
+
+// One row per gage from a USGS instantaneous-values payload, newest reading only.
+function parseSeries(json) {
+  const series = (json && json.value && json.value.timeSeries) || [];
+  const rows = series.map(ts => {
+    const vals = ts.values?.[0]?.value || [];
+    const last = vals[vals.length - 1];
+    if (!last || last.value === '' || last.value === '-999999') return null;
+    const c = parseFloat(last.value);
+    if (isNaN(c)) return null;
+    const f = cToF(c);
+    const geo = ts.sourceInfo?.geoLocation?.geogLocation || {};
+    return {
+      name: ts.sourceInfo.siteName,
+      site: ts.sourceInfo.siteCode?.[0]?.value,
+      lat: parseFloat(geo.latitude),
+      lon: parseFloat(geo.longitude),
+      time: last.dateTime,
+      c, f, cls: classify(f),
+    };
+  }).filter(Boolean);
+  // de-dupe by site (some sites report multiple sub-series)
+  const seen = new Set();
+  return rows.filter(d => seen.has(d.site) ? false : seen.add(d.site));
+}
+
+async function load({ force = false } = {}) {
   const st = els.state.value;
+  rememberState(st);
+  const hit = cache.get(st);
+  if (!force && hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    data = hit.rows;
+    render();
+    document.getElementById('viewtoggle').style.display = 'inline-flex';
+    return;
+  }
   els.refresh.disabled = true;
   els.summary.style.display = 'none';
   els.stations.innerHTML = '<div class="state"><div class="spinner"></div>Reading the gages…</div>';
+  announce(`Loading gages for ${stateName(st)}…`);
   const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&stateCd=${st}`
             + `&parameterCd=00010&siteStatus=active`;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('USGS service returned ' + res.status);
-    const json = await res.json();
-    const series = (json.value && json.value.timeSeries) || [];
-    data = series.map(ts => {
-      const vals = ts.values?.[0]?.value || [];
-      const last = vals[vals.length - 1];
-      if (!last || last.value === '' || last.value === '-999999') return null;
-      const c = parseFloat(last.value);
-      if (isNaN(c)) return null;
-      const f = cToF(c);
-      const geo = ts.sourceInfo.geoLocation?.geogLocation || {};
-      return {
-        name: ts.sourceInfo.siteName,
-        site: ts.sourceInfo.siteCode?.[0]?.value,
-        lat: parseFloat(geo.latitude),
-        lon: parseFloat(geo.longitude),
-        time: last.dateTime,
-        c, f, cls: classify(f),
-      };
-    }).filter(Boolean);
-    // de-dupe by site (some sites report multiple sub-series)
-    const seen = new Set();
-    data = data.filter(d => seen.has(d.site) ? false : seen.add(d.site));
+    data = parseSeries(await res.json());
+    cache.set(st, { at: Date.now(), rows: data });
     render();
     document.getElementById('viewtoggle').style.display = 'inline-flex';
   } catch (e) {
     els.stations.innerHTML = `<div class="state err">Couldn't reach the USGS service — ${e.message}.<br>`
       + `It may be temporarily down, or your network may block cross-site requests. Try Refresh.</div>`;
+    announce(`Couldn't reach the USGS service — ${e.message}. Try the refresh button.`);
   } finally {
     els.refresh.disabled = false;
   }
@@ -364,19 +445,22 @@ function render() {
   document.getElementById('cDanger').textContent = counts.danger;
   document.getElementById('cTotal').textContent = data.length;
   els.summary.style.display = 'flex';
+  announce(`${data.length} gages reporting in ${stateName(els.state.value)}: `
+    + `${counts.safe} safe, ${counts.caution} caution, ${counts.danger} over the threshold. `
+    + `Showing ${rows.length}.`);
 
   if (!rows.length) {
     els.stations.innerHTML = '<div class="state">No gages match that filter.</div>';
     if (markerLayer) markerLayer.clearLayers();
+    mapRows = [];
     return;
   }
   els.stations.innerHTML = rows.map(d => {
     const ago = timeAgo(d.time);
-    const detailLink = `detail.html?site=${d.site}&name=${encodeURIComponent(d.name)}`;
     const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
     return `<div class="station">
       <div>
-        <div class="name"><a href="${detailLink}">${d.name}</a></div>
+        <div class="name"><a href="${detailLink(d)}">${d.name}</a></div>
         <div class="meta">Gage ${d.site} · updated ${ago} · <a href="${usgsLink}" target="_blank" rel="noopener" style="color:var(--mist)">USGS ↗</a></div>
       </div>
       <div class="temp">
@@ -390,36 +474,96 @@ function render() {
   renderMap(rows);
 }
 
+// Carry the state along so the detail page's "All gages" comes back here.
+function detailLink(d) {
+  return `detail.html?site=${d.site}&name=${encodeURIComponent(d.name)}&state=${els.state.value}`;
+}
+
+// Gages that land in the same ~54px cell at this zoom are drawn as one pin.
+function clusterRows(rows, zoom) {
+  const CELL = 54;
+  const cells = new Map();
+  rows.forEach(d => {
+    const pt = map.project([d.lat, d.lon], zoom);
+    const key = Math.floor(pt.x / CELL) + ':' + Math.floor(pt.y / CELL);
+    const group = cells.get(key);
+    if (group) group.push(d); else cells.set(key, [d]);
+  });
+  return [...cells.values()];
+}
+
+function gagePin(d) {
+  const icon = L.divIcon({
+    className: '', iconSize: [46, 46], iconAnchor: [23, 46], popupAnchor: [0, -44],
+    html: `<div class="pin ${d.cls}"><span>${Math.round(d.f)}°</span></div>`,
+  });
+  const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
+  return L.marker([d.lat, d.lon], { icon, title: d.name })
+    .bindPopup(
+      `<div class="pname">${d.name}</div>`
+      + `<div class="ptemp">${d.f.toFixed(1)}°F · ${d.c.toFixed(1)}°C — ${badgeText(d.cls)}</div>`
+      + `<a href="${detailLink(d)}">7-day history →</a><br>`
+      + `<a href="${usgsLink}" target="_blank" rel="noopener">USGS gage ${d.site} ↗</a>`);
+}
+
+function clusterPin(group) {
+  const lat = group.reduce((s,d) => s + d.lat, 0) / group.length;
+  const lon = group.reduce((s,d) => s + d.lon, 0) / group.length;
+  const cls = worstClass(group);
+  const icon = L.divIcon({
+    className: '', iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
+    html: `<div class="pin cluster ${cls}"><span>${group.length}</span><span class="sub">gages</span></div>`,
+  });
+  const listed = [...group].sort((a,b) => a.f - b.f).slice(0, 6);
+  const more = group.length - listed.length;
+  const marker = L.marker([lat, lon], { icon, title: `${group.length} gages` })
+    .bindPopup(
+      `<div class="pname">${group.length} gages here</div>`
+      + listed.map(d =>
+          `<div class="ptemp"><a href="${detailLink(d)}">${d.name}</a> — ${d.f.toFixed(1)}°F</div>`).join('')
+      + (more > 0 ? `<div class="ptemp">+${more} more — zoom in</div>` : ''));
+  marker.on('dblclick', () => map.setView([lat, lon], map.getZoom() + 2));
+  return marker;
+}
+
+function drawMarkers() {
+  if (!map || !markerLayer) return;
+  markerLayer.clearLayers();
+  const zoom = map.getZoom();
+  clusterRows(mapRows, zoom).forEach(group => {
+    (group.length === 1 ? gagePin(group[0]) : clusterPin(group)).addTo(markerLayer);
+  });
+}
+
 function renderMap(rows) {
-  const geo = rows.filter(d => !isNaN(d.lat) && !isNaN(d.lon));
+  mapRows = rows.filter(d => !isNaN(d.lat) && !isNaN(d.lon));
   if (!map) {
     map = L.map('map', { scrollWheelZoom: false }).setView([39, -105.5], 6);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19,
     }).addTo(map);
     markerLayer = L.layerGroup().addTo(map);
+    // Re-cluster whenever the pixel distances between gages change.
+    map.on('zoomend', drawMarkers);
   }
-  markerLayer.clearLayers();
-  if (!geo.length) return;
-  const bounds = [];
-  geo.forEach(d => {
-    const icon = L.divIcon({
-      className: '', iconSize: [46, 46], iconAnchor: [23, 46], popupAnchor: [0, -44],
-      html: `<div class="pin ${d.cls}"><span>${Math.round(d.f)}°</span></div>`,
-    });
-    const detailLink = `detail.html?site=${d.site}&name=${encodeURIComponent(d.name)}`;
-    const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
-    L.marker([d.lat, d.lon], { icon })
-      .bindPopup(
-        `<div class="pname">${d.name}</div>`
-        + `<div class="ptemp">${d.f.toFixed(1)}°F · ${d.c.toFixed(1)}°C — ${badgeText(d.cls)}</div>`
-        + `<a href="${detailLink}">7-day history →</a><br>`
-        + `<a href="${usgsLink}" target="_blank" rel="noopener">USGS gage ${d.site} ↗</a>`)
-      .addTo(markerLayer);
-    bounds.push([d.lat, d.lon]);
-  });
-  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
-  if (currentView === 'map') setTimeout(() => map.invalidateSize(), 0);
+  if (!mapRows.length) { markerLayer.clearLayers(); return; }
+  fitToRows();
+  drawMarkers();
+  if (currentView === 'map') setTimeout(showMap, 0);
+}
+
+function fitToRows() {
+  if (!map || !mapRows.length) return;
+  map.fitBounds(mapRows.map(d => [d.lat, d.lon]), { padding: [40, 40], maxZoom: 11 });
+}
+
+// A hidden map has no size, so anything fitted while it was hidden framed
+// nothing. Re-measure and re-fit the moment it is actually on screen.
+function showMap() {
+  if (!map) return;
+  map.invalidateSize();
+  fitToRows();
+  drawMarkers();
 }
 
 function setView(v) {
@@ -428,7 +572,7 @@ function setView(v) {
     b.classList.toggle('active', b.dataset.view === v));
   document.getElementById('map').style.display = v === 'map' ? 'block' : 'none';
   els.stations.style.display = v === 'map' ? 'none' : 'block';
-  if (v === 'map' && map) setTimeout(() => map.invalidateSize(), 0);
+  if (v === 'map') setTimeout(showMap, 0);
 }
 
 function timeAgo(iso) {
@@ -441,12 +585,13 @@ function timeAgo(iso) {
   return Math.round(h/24) + ' d ago';
 }
 
-els.refresh.addEventListener('click', load);
-els.state.addEventListener('change', load);
+els.refresh.addEventListener('click', () => load({ force: true }));
+els.state.addEventListener('change', () => load());
 els.filter.addEventListener('input', render);
 els.sort.addEventListener('change', render);
 document.querySelectorAll('#viewtoggle button').forEach(b =>
   b.addEventListener('click', () => setView(b.dataset.view)));
+els.state.value = initialState();
 load();
 </script>
 </body>

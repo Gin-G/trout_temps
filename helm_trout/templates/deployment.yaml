@@ -16,8 +16,47 @@ spec:
       labels:
         app: {{ .Values.app.name }}
     spec:
+      # The base image is nginx-unprivileged: it already runs as UID 101.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: {{ .Values.app.name }}
         image: {{ .Values.app.image }}
         ports:
         - containerPort: {{ .Values.app.port }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          {{- toYaml .Values.app.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.app.probes.path }}
+            port: {{ .Values.app.port }}
+          {{- toYaml .Values.app.probes.liveness | nindent 10 }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.app.probes.path }}
+            port: {{ .Values.app.port }}
+          {{- toYaml .Values.app.probes.readiness | nindent 10 }}
+        # Everything nginx writes at runtime lives here, so the image itself
+        # can stay read-only: the unprivileged image keeps its pid file and
+        # all temp paths under /tmp.
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: nginx-cache
+        emptyDir: {}
