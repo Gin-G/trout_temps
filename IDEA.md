@@ -70,7 +70,7 @@ Live at https://trout-temps.nickknows.net. Everything talks to USGS directly fro
 - [x] Helm chart with deployment, ClusterIP service, Traefik ingress, cert-manager TLS and an HTTPS-redirect middleware
 - [x] Fix the 502 by matching the service port to nginx-unprivileged's 8080
 - [x] Move the ingress from the nginx class to traefik to match the cluster
-- [ ] Fix the detail page back link, which points at trout-temps.html and 404s — it should be /
+- [x] Fix the detail page back link, which points at trout-temps.html and 404s — it should be /
 - [ ] Add liveness and readiness probes on /healthz, which the container serves but nothing checks
 - [ ] Add resource requests and limits and a securityContext to the deployment
 - [ ] Make the CI Helm bump tolerate an unchanged tag, since git commit -a fails the job on an empty diff
