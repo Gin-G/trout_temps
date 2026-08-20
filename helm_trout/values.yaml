@@ -3,7 +3,7 @@ app:
   instances: 1
   group: trout-temps
   fqdn: trout-temps.nickknows.net
-  image: docker.io/ncging/trout-temps:2026-08-20.16.41
+  image: docker.io/ncging/trout-temps:2026-08-20.16.57
   port: 8080
   # Static nginx: tiny and CPU-idle, but give it room for a traffic spike.
   resources:
