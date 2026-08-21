@@ -8,7 +8,14 @@ metadata:
     group: {{ .Values.app.group }}
   annotations:
       cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
-      external-dns.alpha.kubernetes.io/target: "8.44.158.127"
+      # This hostname is served through the Cloudflare Tunnel, so its DNS record
+      # is a CNAME to <tunnel-id>.cfargotunnel.com rather than an A record to the
+      # house. external-dns owns this record (see the heritage TXT) and would
+      # upsert the A record straight back over the CNAME, so it has to be told
+      # to leave this Ingress alone. Removing the target annotation is not
+      # enough on its own -- without a target external-dns falls back to the
+      # Ingress status, which here is the private LoadBalancer IPs.
+      external-dns.alpha.kubernetes.io/exclude: "true"
       traefik.ingress.kubernetes.io/router.middlewares: "{{ .Release.Namespace }}-{{ .Values.app.name }}-redirect-https@kubernetescrd"
 spec:
   ingressClassName: traefik
