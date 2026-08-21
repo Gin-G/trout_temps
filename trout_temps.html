@@ -3,7 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hold the Line — Trout Water Temperatures</title>
+<title>Is It Too Hot to Fish? Live Trout Water Temperatures</title>
+<meta name="description" content="Live trout stream water temperatures from USGS gages in 15 states. See whether a river is safe to fish, borderline, or too hot to release trout.">
+<link rel="canonical" href="https://trout-temps.nickknows.net/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0a1a1f">
+<!-- Social cards. logo.png is 180x180, so the square 'summary' card is the
+     honest choice; a 1200x630 card image would upgrade this to a large card. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Trout Temps">
+<meta property="og:url" content="https://trout-temps.nickknows.net/">
+<meta property="og:title" content="Is It Too Hot to Fish? Live Trout Water Temperatures">
+<meta property="og:description" content="Live trout stream water temperatures from USGS gages in 15 states. See whether a river is safe to fish, borderline, or too hot to release trout.">
+<meta property="og:image" content="https://trout-temps.nickknows.net/logo.png">
+<meta property="og:image:width" content="180">
+<meta property="og:image:height" content="180">
+<meta property="og:image:alt" content="Trout Temps">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Is It Too Hot to Fish? Live Trout Water Temperatures">
+<meta name="twitter:description" content="Live trout stream water temperatures from USGS gages in 15 states. See whether a river is safe to fish, borderline, or too hot to release trout.">
+<meta name="twitter:image" content="https://trout-temps.nickknows.net/logo.png">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-08D62NHKX9"></script>
 <script>
@@ -12,6 +31,82 @@
   gtag('js', new Date());
 
   gtag('config', 'G-08D62NHKX9');
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": "https://trout-temps.nickknows.net/#app",
+      "name": "Trout Temps",
+      "url": "https://trout-temps.nickknows.net/",
+      "applicationCategory": "SportsApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires JavaScript",
+      "description": "Live trout stream water temperatures read from USGS streamgages, scored against the 65°F catch-and-release threshold.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://trout-temps.nickknows.net/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is it too hot to fish for trout?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Once water passes about 65°F (18°C) it is too hot to fish for trout you intend to release. Warm water holds less dissolved oxygen at the same time a fought fish needs more of it, so trout that swim away can still die hours later. Below 60°F you are in good shape; 60–65°F is the caution band."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What water temperature is too warm for trout?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It depends on the species. Bull trout are done at 54°F, rainbow, steelhead, cutthroat and brook trout at about 61°F, and brown trout at about 66°F. This page scores every gage against a single 65°F line, so on rainbow, cutthroat and brook water treat the caution band as the real limit."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I check the water temperature of a river before I fish?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The USGS operates streamgages that report water temperature every 15 to 60 minutes, published free as parameter 00010. This page reads those gages live for 15 states and converts them to °F, so you can check a river's current temperature without a thermometer before you drive out."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does warm water kill trout after catch and release?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Fighting a fish burns oxygen and floods its muscles with lactic acid. In cold water a trout clears that and recovers. In warm water there is less dissolved oxygen available to repay the debt, so mortality after release climbs sharply with every degree above the threshold."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "When is the best time to fish in hot weather?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Early morning. Water is coldest just after dawn and warmest in late afternoon, so a stream that is borderline at 4pm may be well within safe range at 6am. Tailwaters below bottom-release dams and high-elevation or spring-fed streams also stay colder through a heat wave."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is hoot owl fishing and when does it apply?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Hoot owl restrictions close fishing from 2pm to midnight when water gets too warm, leaving only the cold morning hours open. States such as Montana impose them during summer heat and low flows. They are set by your state agency, so check current regulations and voluntary closures alongside this page."
+          }
+        }
+      ]
+    }
+  ]
+}
 </script>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/logo.png" type="image/png">
@@ -263,6 +358,30 @@
     button.refresh { margin-left: 0; width: 100%; }
   }
   @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+  /* FAQ: real answers to the questions people actually search, and the
+     visible half of the FAQPage structured data in the head. */
+  .faq { border-top: 1px solid var(--line); padding: 40px 0 8px; }
+  .faq h2 {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--mist); font-weight: 400; margin-bottom: 18px;
+  }
+  .faq-list { max-width: 72ch; }
+  .faq-item { border-bottom: 1px solid var(--line); }
+  .faq-item > summary {
+    cursor: pointer; list-style: none; padding: 14px 28px 14px 0; position: relative;
+  }
+  .faq-item > summary::-webkit-details-marker { display: none; }
+  .faq-item > summary::after {
+    content: '\25B8'; position: absolute; right: 4px; top: 50%;
+    transform: translateY(-50%); color: var(--mist); transition: transform 0.15s;
+  }
+  .faq-item[open] > summary::after { transform: translateY(-50%) rotate(90deg); }
+  .faq-item > summary h3 { display: inline; font-size: 17px; font-weight: 400; }
+  .faq-item > summary:hover h3 { color: var(--safe); }
+  .faq-item > p { color: var(--mist); font-size: 15px; padding: 0 0 16px; }
+
 </style>
 </head>
 <body>
@@ -355,6 +474,39 @@
     <div class="state"><div class="spinner"></div>Reading the gages…</div>
   </div>
 </div>
+
+
+<section class="faq" id="faq" aria-labelledby="faq-h">
+  <div class="wrap">
+    <h2 id="faq-h">Trout water temperature questions</h2>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary><h3>Is it too hot to fish for trout?</h3></summary>
+        <p>Once water passes about 65°F (18°C) it is too hot to fish for trout you intend to release. Warm water holds less dissolved oxygen at the same time a fought fish needs more of it, so trout that swim away can still die hours later. Below 60°F you are in good shape; 60–65°F is the caution band.</p>
+      </details>
+      <details class="faq-item">
+        <summary><h3>What water temperature is too warm for trout?</h3></summary>
+        <p>It depends on the species. Bull trout are done at 54°F, rainbow, steelhead, cutthroat and brook trout at about 61°F, and brown trout at about 66°F. This page scores every gage against a single 65°F line, so on rainbow, cutthroat and brook water treat the caution band as the real limit.</p>
+      </details>
+      <details class="faq-item">
+        <summary><h3>How do I check the water temperature of a river before I fish?</h3></summary>
+        <p>The USGS operates streamgages that report water temperature every 15 to 60 minutes, published free as parameter 00010. This page reads those gages live for 15 states and converts them to °F, so you can check a river's current temperature without a thermometer before you drive out.</p>
+      </details>
+      <details class="faq-item">
+        <summary><h3>Why does warm water kill trout after catch and release?</h3></summary>
+        <p>Fighting a fish burns oxygen and floods its muscles with lactic acid. In cold water a trout clears that and recovers. In warm water there is less dissolved oxygen available to repay the debt, so mortality after release climbs sharply with every degree above the threshold.</p>
+      </details>
+      <details class="faq-item">
+        <summary><h3>When is the best time to fish in hot weather?</h3></summary>
+        <p>Early morning. Water is coldest just after dawn and warmest in late afternoon, so a stream that is borderline at 4pm may be well within safe range at 6am. Tailwaters below bottom-release dams and high-elevation or spring-fed streams also stay colder through a heat wave.</p>
+      </details>
+      <details class="faq-item">
+        <summary><h3>What is hoot owl fishing and when does it apply?</h3></summary>
+        <p>Hoot owl restrictions close fishing from 2pm to midnight when water gets too warm, leaving only the cold morning hours open. States such as Montana impose them during summer heat and low flows. They are set by your state agency, so check current regulations and voluntary closures alongside this page.</p>
+      </details>
+    </div>
+  </div>
+</section>
 
 <footer>
   <div class="wrap">

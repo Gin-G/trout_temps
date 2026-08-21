@@ -3,7 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gage detail — Trout Water Temperatures</title>
+<title>River Water Temperature — 7-Day History</title>
+<meta name="description" content="Seven days of water temperature for a single USGS streamgage, charted against the 65°F trout catch-and-release threshold, plus whatever else the gage reports.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0a1a1f">
+<!-- Canonical is set from ?site= at runtime (see below): the same gage can be
+     reached with different name/state hints, and those are display-only. -->
+<link rel="canonical" id="canonical" href="https://trout-temps.nickknows.net/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Trout Temps">
+<meta property="og:title" content="River Water Temperature — 7-Day History">
+<meta property="og:description" content="Seven days of water temperature for a single USGS streamgage, charted against the 65°F trout catch-and-release threshold, plus whatever else the gage reports.">
+<meta property="og:image" content="https://trout-temps.nickknows.net/logo.png">
+<meta property="og:image:alt" content="Trout Temps">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="River Water Temperature — 7-Day History">
+<meta name="twitter:description" content="Seven days of water temperature for a single USGS streamgage, charted against the 65°F trout catch-and-release threshold, plus whatever else the gage reports.">
+<meta name="twitter:image" content="https://trout-temps.nickknows.net/logo.png">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-08D62NHKX9"></script>
 <script>
@@ -170,6 +186,15 @@
 </footer>
 
 <script>
+// SEO: the gage name is what people search for, so mirror it into <title>, and
+// point the canonical at the bare ?site= URL so the name/state display hints
+// don't split one gage across many indexed URLs.
+function setPageIdentity(name) {
+  if (name) document.title = name + ' Water Temperature — 7-Day History';
+  const link = document.getElementById('canonical');
+  const id = new URLSearchParams(location.search).get('site');
+  if (link && id) link.href = 'https://trout-temps.nickknows.net/detail.html?site=' + encodeURIComponent(id);
+}
 // Parameter catalog: USGS code -> display config
 const PARAMS = [
   { code: '00010', key: 'temp',  label: 'Water temperature', unit: '°F',  cls: 'temp',  convert: c => c * 9/5 + 32, dp: 1, threshold: 65 },
@@ -193,6 +218,7 @@ function verdictText(c){ return c==='danger'?'Not safe for trout':c==='caution'?
 function announce(msg){ document.getElementById('status').textContent = msg; }
 
 if (nameHint) document.getElementById('title').textContent = nameHint;
+setPageIdentity(nameHint);
 // Return to the state the visitor was browsing, not whatever the list defaults to.
 if (/^[a-z]{2}$/.test(fromState || '')) {
   document.getElementById('back').href = `/?state=${fromState}`;
@@ -232,6 +258,7 @@ async function load() {
     // header info from first series
     const info = series[0].sourceInfo;
     document.getElementById('title').textContent = info.siteName;
+    setPageIdentity(info.siteName);
     document.getElementById('sub').innerHTML =
       `Gage ${site} · `
       + `<a href="https://waterdata.usgs.gov/monitoring-location/${site}/" target="_blank" rel="noopener">USGS page ↗</a>`;

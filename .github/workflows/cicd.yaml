@@ -13,6 +13,8 @@ on:
       - '*.ico'
       - nginx.conf
       - security-headers.conf
+      - robots.txt
+      - sitemap.xml
       - Dockerfile
       - 'vendor/**'
       - 'tests/**'

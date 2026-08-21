@@ -1,0 +1,5 @@
+# Everything here is public, client-rendered USGS data — crawl it all.
+User-agent: *
+Allow: /
+
+Sitemap: https://trout-temps.nickknows.net/sitemap.xml

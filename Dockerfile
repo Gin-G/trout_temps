@@ -7,7 +7,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY security-headers.conf /etc/nginx/security-headers.conf
 
 # The app files. They contain no secrets — safe to bake in.
-COPY trout_temps.html detail.html logo.png favicon.ico /usr/share/nginx/html/
+COPY trout_temps.html detail.html logo.png favicon.ico robots.txt sitemap.xml /usr/share/nginx/html/
 # Leaflet is vendored rather than pulled from a CDN, so the CSP can stay on 'self'.
 COPY vendor/ /usr/share/nginx/html/vendor/
 # Serve the main page at /, replacing the base image's stock index.html
