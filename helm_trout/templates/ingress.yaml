@@ -8,7 +8,16 @@ metadata:
     group: {{ .Values.app.group }}
   annotations:
       cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
-      external-dns.alpha.kubernetes.io/target: "8.44.158.127"
+      # Served through the Cloudflare Tunnel. external-dns writes a CNAME rather
+      # than an A record because the target is a hostname, and keeps owning the
+      # name throughout -- which is the point. Excluding the Ingress instead
+      # left the name unowned, and external-dns withdrew the record and took the
+      # site down (see git history). Swapping the target flips A -> CNAME in
+      # place, with no window where nothing owns it.
+      #
+      # cfargotunnel.com records must be proxied; external-dns runs with
+      # --cloudflare-proxied, so that is already the case.
+      external-dns.alpha.kubernetes.io/target: "75c20a42-2dd1-4297-8a51-3aefbcb3f004.cfargotunnel.com"
       traefik.ingress.kubernetes.io/router.middlewares: "{{ .Release.Namespace }}-{{ .Values.app.name }}-redirect-https@kubernetescrd"
 spec:
   ingressClassName: traefik
