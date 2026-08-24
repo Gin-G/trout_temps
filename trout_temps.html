@@ -8,21 +8,21 @@
 <link rel="canonical" href="https://trout-temps.nickknows.net/">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <meta name="theme-color" content="#0a1a1f">
-<!-- Social cards. logo.png is 180x180, so the square 'summary' card is the
-     honest choice; a 1200x630 card image would upgrade this to a large card. -->
+<!-- Social cards. social-card.png is 1200x630, drawn by build/social-card.py,
+     which is what earns the full-width 'summary_large_image' treatment. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Trout Temps">
 <meta property="og:url" content="https://trout-temps.nickknows.net/">
 <meta property="og:title" content="Is It Too Hot to Fish? Live Trout Water Temperatures">
 <meta property="og:description" content="Live trout stream water temperatures from USGS gages in 15 states. See whether a river is safe to fish, borderline, or too hot to release trout.">
-<meta property="og:image" content="https://trout-temps.nickknows.net/logo.png">
-<meta property="og:image:width" content="180">
-<meta property="og:image:height" content="180">
-<meta property="og:image:alt" content="Trout Temps">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://trout-temps.nickknows.net/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Trout Temps — live trout water temperatures from USGS gages, scored against the 65°F catch-and-release threshold.">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Is It Too Hot to Fish? Live Trout Water Temperatures">
 <meta name="twitter:description" content="Live trout stream water temperatures from USGS gages in 15 states. See whether a river is safe to fish, borderline, or too hot to release trout.">
-<meta name="twitter:image" content="https://trout-temps.nickknows.net/logo.png">
+<meta name="twitter:image" content="https://trout-temps.nickknows.net/social-card.png">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-08D62NHKX9"></script>
 <script>
@@ -286,6 +286,56 @@
   .badge.danger { background: rgba(214,90,74,0.18); color: var(--danger); }
 
   /* View toggle */
+  .browse {
+    margin-top: 18px; font-family: ui-monospace, monospace; font-size: 13px;
+    color: var(--mist);
+  }
+  .browse a { color: var(--safe); }
+  .nearme {
+    background: var(--deep); color: var(--paper); border: 1px solid var(--line);
+    border-radius: 4px; cursor: pointer; padding: 9px 16px; align-self: end;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .nearme:hover { border-color: var(--safe); color: var(--safe); }
+  .nearme[aria-pressed="true"] {
+    background: var(--safe); color: var(--abyss); border-color: var(--safe); font-weight: 600;
+  }
+  .nearme:disabled { opacity: 0.5; cursor: default; }
+  /* The state picker stays visible while "Near me" is on, so it is obvious what
+     to click to get back — but it is not what is driving the list. */
+  .field.muted label, .field.muted select { opacity: 0.45; }
+  /* A stale row is still readable, but it must not look like a verdict. */
+  .station.stale { opacity: 0.55; }
+  .stalebox { margin-top: 34px; border-top: 1px solid var(--line); }
+  .stalebox > summary {
+    cursor: pointer; padding: 18px 0; color: var(--mist);
+    font-family: ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.04em; list-style: none;
+  }
+  .stalebox > summary::-webkit-details-marker { display: none; }
+  .stalebox > summary::before { content: '▸ '; }
+  .stalebox[open] > summary::before { content: '▾ '; }
+  .stalebox > summary:hover { color: var(--paper); }
+  .stalebox > summary .muted { color: var(--mist); opacity: 0.75; }
+  .badge.stale { background: rgba(143,179,189,0.14); color: var(--mist); }
+  .station .dist {
+    color: var(--safe); font-family: ui-monospace, monospace; font-size: 11px;
+  }
+  .locnote {
+    margin: 14px 0 0; font-family: ui-monospace, monospace; font-size: 12px;
+    color: var(--mist);
+  }
+  .locnote.err { color: var(--caution); }
+  .locnote a { color: var(--safe); }
+  .viewrow {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .byriver {
+    color: var(--mist); text-decoration: none;
+    font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 0.04em;
+  }
+  .byriver:hover { color: var(--safe); }
   .viewtoggle {
     display: inline-flex; border: 1px solid var(--line); border-radius: 4px;
     overflow: hidden; margin: 18px 0 0;
@@ -322,6 +372,16 @@
   .pin.safe { background: var(--safe); }
   .pin.caution { background: var(--caution); }
   .pin.danger { background: var(--danger); }
+  /* A gage that stopped reporting is a location, not a reading: grey, small,
+     and no temperature on its face to be mistaken for a current one. */
+  .pin.stale {
+    width: 26px; height: 26px; background: var(--mist); opacity: 0.5;
+    border-width: 1px; box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  }
+  .pin.stale span { font-size: 9px; }
+  .pin.cluster.stale { width: 30px; height: 30px; }
+  .pin.cluster.stale span { font-size: 10px; }
+  .pin.cluster.stale .sub { display: none; }
   .leaflet-popup-content-wrapper {
     background: var(--slate); color: var(--paper); border-radius: 6px;
   }
@@ -414,6 +474,7 @@
       </table>
       <p class="note">A USGS gage reports water temperature, not what swims past it, so every gage here is scored against one 65°F line. That sits about where brown trout are, and roughly 4°F above rainbow, cutthroat and brook trout — on those waters, read the caution band as the real limit. The older 68°F rule of thumb is higher than the review supports for any of these species. Source: <a href="https://www.keepfishwet.org/trout-temp-angling-science" target="_blank" rel="noopener">Keep Fish Wet, Fishing for Trout in Warming Waters ↗</a></p>
     </details>
+    <p class="browse">Looking for one river? <a href="/rivers/">Browse every river we track</a> — each has its own page with a month of daily highs and how often it broke 65°F.</p>
   </div>
 </header>
 
@@ -446,11 +507,13 @@
     <div class="field">
       <label for="sort">Sort</label>
       <select id="sort">
+        <option value="dist" id="sortDist" hidden>Nearest first</option>
         <option value="temp">Coldest first</option>
         <option value="tempd">Warmest first</option>
         <option value="name">Name (A–Z)</option>
       </select>
     </div>
+    <button class="nearme" id="nearme" aria-pressed="false">Near me</button>
     <button class="refresh" id="refresh">Refresh</button>
   </div>
 
@@ -458,15 +521,20 @@
     <div class="stat safe"><div class="n" id="cSafe">—</div><div class="l">Safe · under 60°F</div></div>
     <div class="stat caution"><div class="n" id="cCaution">—</div><div class="l">Caution · 60–65°F</div></div>
     <div class="stat danger"><div class="n" id="cDanger">—</div><div class="l">Stop · over 65°F</div></div>
-    <div class="stat"><div class="n" id="cTotal">—</div><div class="l">Gages reporting</div></div>
+    <div class="stat"><div class="n" id="cTotal">—</div><div class="l">Reporting now</div></div>
   </div>
 
-  <div class="viewtoggle" id="viewtoggle" style="display:none;">
-    <button data-view="list" class="active">List</button>
-    <button data-view="map">Map</button>
+  <div class="viewrow">
+    <div class="viewtoggle" id="viewtoggle" style="display:none;">
+      <button data-view="list" class="active">List</button>
+      <button data-view="map">Map</button>
+    </div>
+    <a class="byriver" href="/rivers/">Browse by river →</a>
   </div>
 
   <div id="map" style="display:none;"></div>
+
+  <p class="locnote" id="locnote" style="display:none;"></p>
 
   <p class="sr-only" id="status" role="status" aria-live="polite"></p>
 
@@ -519,17 +587,39 @@ const cToF = c => c * 9/5 + 32;
 // A state's readings are good for this long before we ask USGS again.
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STATE_KEY = 'troutTemps.state';
+const MODE_KEY = 'troutTemps.mode';
+
+// How far "near me" reaches. A state line is not a fishing constraint: from
+// Fort Collins the closest cold water is in Wyoming, and picking "Colorado"
+// hides it. 100 miles is about a morning's drive; if that turns up almost
+// nothing, WIDEN_MI is tried once before giving up.
+const NEAR_MI = 100;
+// USGS keeps returning the last value a decommissioned gage ever sent, so a
+// gage that stopped reporting in 2024 still answers with a temperature. Sorted
+// by distance those land at the top of the list, and the cold ones look like
+// exactly what a visitor is hoping to find. Anything this old is history, not a
+// reading, and must not carry a safe/caution verdict.
+const STALE_MS = 24 * 60 * 60 * 1000;
+const WIDEN_MI = 150;
+const THIN_RESULT = 8;
+const MILES_PER_DEG_LAT = 69;
 
 const els = {
   state: document.getElementById('state'),
   filter: document.getElementById('filter'),
   sort: document.getElementById('sort'),
+  sortDist: document.getElementById('sortDist'),
   refresh: document.getElementById('refresh'),
+  nearme: document.getElementById('nearme'),
   stations: document.getElementById('stations'),
   summary: document.getElementById('summary'),
   status: document.getElementById('status'),
+  locnote: document.getElementById('locnote'),
 };
 let data = [];
+// 'state' reads a whole state; 'near' reads a box around the visitor.
+let mode = 'state';
+let here = null;          // { lat, lon } once geolocation has answered
 let currentView = 'list';
 let map = null, markerLayer = null;
 let mapRows = [];
@@ -550,6 +640,55 @@ function worstClass(rows) {
 }
 // Screen readers get the loading/error/result narration the visuals imply.
 function announce(msg) { els.status.textContent = msg; }
+
+// Great-circle distance in miles. Only used for ordering and for a label, so
+// the spherical approximation is far more precision than the question needs.
+function distanceMi(aLat, aLon, bLat, bLon) {
+  const R = 3958.8;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(bLat - aLat), dLon = toRad(bLon - aLon);
+  const h = Math.sin(dLat / 2) ** 2
+          + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// USGS rejects a bounding box whose area exceeds 25 square degrees measured at
+// the equator — width x height x cos(latitude nearest the equator). A 100-mile
+// box is well inside that everywhere in the lower 48, but the widened one is
+// close enough to the line to be worth clamping rather than trusting.
+//
+// Coordinates go out rounded to one decimal, about 7 miles. The box is all USGS
+// needs, and it means the visitor's actual position is never put in a URL.
+function boundingBox(lat, lon, miles) {
+  const dLat = miles / MILES_PER_DEG_LAT;
+  const cosLat = Math.max(0.05, Math.cos(lat * Math.PI / 180));
+  let dLon = miles / (MILES_PER_DEG_LAT * cosLat);
+  // The edge nearest the equator is the widest, and the one USGS measures.
+  const edgeLat = Math.max(0, Math.abs(lat) - dLat);
+  const cosEdge = Math.cos(edgeLat * Math.PI / 180);
+  const height = 2 * dLat;
+  const maxWidth = 25 / (height * cosEdge);
+  if (2 * dLon > maxWidth) dLon = maxWidth / 2;
+  const r1 = n => Math.round(n * 10) / 10;
+  return {
+    west: r1(Math.max(-179.9, lon - dLon)), south: r1(Math.max(-89.9, lat - dLat)),
+    east: r1(Math.min(179.9, lon + dLon)),  north: r1(Math.min(89.9, lat + dLat)),
+  };
+}
+
+function askForLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('This browser has no location support.'));
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      err => reject(new Error(
+        err.code === 1 ? 'Location permission was denied.'
+        : err.code === 3 ? 'Location took too long to arrive.'
+        : 'Your location is unavailable.')),
+      // Street-level accuracy would tell us nothing a 100-mile box doesn't.
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 });
+  });
+}
 
 function stateName(code) {
   const opt = [...els.state.options].find(o => o.value === code);
@@ -581,12 +720,14 @@ function parseSeries(json) {
     if (isNaN(c)) return null;
     const f = cToF(c);
     const geo = ts.sourceInfo?.geoLocation?.geogLocation || {};
+    const time = last.dateTime;
     return {
       name: ts.sourceInfo.siteName,
       site: ts.sourceInfo.siteCode?.[0]?.value,
       lat: parseFloat(geo.latitude),
       lon: parseFloat(geo.longitude),
-      time: last.dateTime,
+      time,
+      stale: Date.now() - new Date(time).getTime() > STALE_MS,
       c, f, cls: classify(f),
     };
   }).filter(Boolean);
@@ -595,27 +736,114 @@ function parseSeries(json) {
   return rows.filter(d => seen.has(d.site) ? false : seen.add(d.site));
 }
 
-async function load({ force = false } = {}) {
-  const st = els.state.value;
-  rememberState(st);
-  const hit = cache.get(st);
-  if (!force && hit && Date.now() - hit.at < CACHE_TTL_MS) {
-    data = hit.rows;
-    render();
-    document.getElementById('viewtoggle').style.display = 'inline-flex';
-    return;
+function ivUrl(params) {
+  return 'https://waterservices.usgs.gov/nwis/iv/?format=json&' + params
+       + '&parameterCd=00010&siteStatus=active';
+}
+
+// Distance is what "near me" sorts and labels by, so it is stamped on every row
+// the moment the readings land rather than recomputed on each render.
+function withDistance(rows, from) {
+  if (!from) return rows;
+  return rows.map(d => ({
+    ...d,
+    miles: (isNaN(d.lat) || isNaN(d.lon)) ? null : distanceMi(from.lat, from.lon, d.lat, d.lon),
+  }));
+}
+
+// Near mode owes the visitor three things in writing: what it searched, that
+// their position did not leave the browser, and how to get back out of it.
+function showNoteFor(label) {
+  if (mode !== 'near') { setNote(''); return; }
+  setNote(`Showing the ${data.length} gage${data.length === 1 ? '' : 's'} reporting within `
+    + `${label}. Your location stays in your browser — only a rounded box is sent to USGS. `
+    + `<a href="#" id="clearloc">Browse by state instead</a>`);
+  const clear = document.getElementById('clearloc');
+  if (clear) clear.addEventListener('click', e => { e.preventDefault(); setMode('state'); });
+}
+
+function setNote(msg, isError) {
+  const note = els.locnote;
+  note.innerHTML = msg || '';
+  note.className = 'locnote' + (isError ? ' err' : '');
+  note.style.display = msg ? 'block' : 'none';
+}
+
+// What to fetch, how to cache it, and what to call it — the one place the two
+// modes differ. Everything after this is shared.
+async function plan(force) {
+  if (mode !== 'near') {
+    const st = els.state.value;
+    rememberState(st);
+    return { key: st, url: ivUrl(`stateCd=${st}`), label: stateName(st), from: null };
   }
+  if (!here || force) here = await askForLocation();
+  const box = boundingBox(here.lat, here.lon, NEAR_MI);
+  return {
+    key: `near:${box.west},${box.south},${box.east},${box.north}`,
+    url: ivUrl(`bBox=${box.west},${box.south},${box.east},${box.north}`),
+    label: `${NEAR_MI} miles of you`,
+    from: here,
+    box,
+  };
+}
+
+async function load({ force = false } = {}) {
   els.refresh.disabled = true;
-  els.summary.style.display = 'none';
-  els.stations.innerHTML = '<div class="state"><div class="spinner"></div>Reading the gages…</div>';
-  announce(`Loading gages for ${stateName(st)}…`);
-  const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&stateCd=${st}`
-            + `&parameterCd=00010&siteStatus=active`;
+  els.nearme.disabled = true;
   try {
-    const res = await fetch(url);
+    let p;
+    try {
+      p = await plan(force);
+    } catch (e) {
+      // No location means no "near me". Fall back to the state picker rather
+      // than leaving the page stuck on a spinner. The explanation is written
+      // after the fallback load, because that load clears the note on its way
+      // through — set it first and it is gone before anyone reads it.
+      mode = 'state';
+      syncModeUi();
+      announce(`${e.message} Showing ${stateName(els.state.value)} instead.`);
+      await load({ force });
+      setNote(`${e.message} Showing ${stateName(els.state.value)} instead — `
+        + `pick a state above, or allow location in your browser and try again.`, true);
+      return;
+    }
+
+    const hit = cache.get(p.key);
+    if (!force && hit && Date.now() - hit.at < CACHE_TTL_MS) {
+      data = hit.rows;
+      showNoteFor(hit.label);
+      render();
+      document.getElementById('viewtoggle').style.display = 'inline-flex';
+      return;
+    }
+
+    els.summary.style.display = 'none';
+    els.stations.innerHTML = '<div class="state"><div class="spinner"></div>Reading the gages…</div>';
+    announce(`Loading gages within ${p.label}…`);
+
+    const res = await fetch(p.url);
     if (!res.ok) throw new Error('USGS service returned ' + res.status);
-    data = parseSeries(await res.json());
-    cache.set(st, { at: Date.now(), rows: data });
+    let rows = withDistance(parseSeries(await res.json()), p.from);
+
+    // A quiet corner of the map is worth one wider look before saying "nothing".
+    if (mode === 'near' && rows.length < THIN_RESULT) {
+      const wide = boundingBox(here.lat, here.lon, WIDEN_MI);
+      const res2 = await fetch(ivUrl(`bBox=${wide.west},${wide.south},${wide.east},${wide.north}`));
+      if (res2.ok) {
+        const wider = withDistance(parseSeries(await res2.json()), p.from);
+        if (wider.length > rows.length) {
+          rows = wider;
+          p.label = `${WIDEN_MI} miles of you`;
+        }
+      }
+    }
+
+    data = rows;
+    // The label travels with the rows: a widened search says 150 miles, and a
+    // cache hit has to be able to say the same thing without re-deriving it.
+    cache.set(p.key, { at: Date.now(), rows, label: p.label });
+    showNoteFor(p.label);
     render();
     document.getElementById('viewtoggle').style.display = 'inline-flex';
   } catch (e) {
@@ -624,58 +852,130 @@ async function load({ force = false } = {}) {
     announce(`Couldn't reach the USGS service — ${e.message}. Try the refresh button.`);
   } finally {
     els.refresh.disabled = false;
+    els.nearme.disabled = false;
   }
+}
+
+// The controls have to say which mode is driving the list.
+function syncModeUi() {
+  const near = mode === 'near';
+  els.nearme.setAttribute('aria-pressed', String(near));
+  els.nearme.textContent = near ? 'Near me · on' : 'Near me';
+  els.state.closest('.field').classList.toggle('muted', near);
+  els.sortDist.hidden = !near;
+  if (near && els.sort.value !== 'dist') els.sort.value = 'dist';
+  if (!near && els.sort.value === 'dist') els.sort.value = 'temp';
+}
+
+function setMode(next) {
+  mode = next;
+  try { localStorage.setItem(MODE_KEY, next); } catch (e) { /* storage blocked */ }
+  syncModeUi();
+  if (next === 'state') setNote('');
+  load();
 }
 
 function render() {
   const q = els.filter.value.trim().toLowerCase();
   let rows = data.filter(d => !q || d.name.toLowerCase().includes(q));
   const s = els.sort.value;
-  rows.sort((a,b) =>
+  const order = (a,b) =>
     s === 'name' ? a.name.localeCompare(b.name)
     : s === 'tempd' ? b.f - a.f
-    : a.f - b.f);
+    // A gage with no coordinates cannot be placed, so it sorts last rather than
+    // jumping to the front on a NaN comparison.
+    : s === 'dist' ? (a.miles ?? Infinity) - (b.miles ?? Infinity)
+    : a.f - b.f;
+  rows.sort(order);
 
-  // summary on full set (not filtered) so counts reflect the state
+  // Summary on the full set (not filtered) so counts reflect the whole search,
+  // but only on gages that are actually reporting — a band a dead gage sits in
+  // is not information about the water today.
+  const live = data.filter(d => !d.stale);
   const counts = { safe:0, caution:0, danger:0 };
-  data.forEach(d => counts[d.cls]++);
+  live.forEach(d => counts[d.cls]++);
   document.getElementById('cSafe').textContent = counts.safe;
   document.getElementById('cCaution').textContent = counts.caution;
   document.getElementById('cDanger').textContent = counts.danger;
-  document.getElementById('cTotal').textContent = data.length;
+  document.getElementById('cTotal').textContent = live.length;
   els.summary.style.display = 'flex';
-  announce(`${data.length} gages reporting in ${stateName(els.state.value)}: `
+  const where = mode === 'near' ? 'near you' : `in ${stateName(els.state.value)}`;
+  announce(`${data.length} gages reporting ${where}: `
     + `${counts.safe} safe, ${counts.caution} caution, ${counts.danger} over the threshold. `
     + `Showing ${rows.length}.`);
 
   if (!rows.length) {
-    els.stations.innerHTML = '<div class="state">No gages match that filter.</div>';
+    els.stations.innerHTML = mode === 'near' && !q
+      ? `<div class="state">No USGS gage within ${WIDEN_MI} miles is reporting water temperature right now.<br>`
+        + `Try a state instead — the nearest trout water may be further out.</div>`
+      : '<div class="state">No gages match that filter.</div>';
     if (markerLayer) markerLayer.clearLayers();
     mapRows = [];
     return;
   }
-  els.stations.innerHTML = rows.map(d => {
-    const ago = timeAgo(d.time);
-    const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
-    return `<div class="station">
+  // Two groups, not one sorted list: a gage that stopped reporting years ago is
+  // a different kind of thing from a cold river, and mixing them makes the
+  // reader check every timestamp.
+  const liveRows = rows.filter(d => !d.stale);
+  const staleRows = rows.filter(d => d.stale);
+  // Nothing reporting at all is worth saying out loud, and the section that
+  // holds the explanation should already be open when it is the only thing there.
+  const nothingLive = !liveRows.length && staleRows.length > 0;
+  els.stations.innerHTML =
+    (nothingLive
+      ? `<div class="state">No gage here is reporting a current water temperature.<br>`
+        + `The ${staleRows.length} below have gone quiet — try a wider search or another state.</div>`
+      : stationList(liveRows))
+    + (staleRows.length ? staleSection(staleRows, nothingLive) : '');
+
+  // The list is the page; the map is an enhancement. Anything that breaks
+  // Leaflet must not take the readings down with it, and must not be reported
+  // as a USGS failure by the catch around load().
+  try {
+    renderMap(rows);
+  } catch (e) {
+    console.error('Map failed to render:', e);
+    document.getElementById('map').style.display = 'none';
+  }
+}
+
+function stationRow(d) {
+  const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
+  return `<div class="station${d.stale ? ' stale' : ''}">
       <div>
         <div class="name"><a href="${detailLink(d)}">${d.name}</a></div>
-        <div class="meta">Gage ${d.site} · updated ${ago} · <a href="${usgsLink}" target="_blank" rel="noopener" style="color:var(--mist)">USGS ↗</a></div>
+        <div class="meta">${d.miles != null ? `<span class="dist">${fmtMiles(d.miles)} away</span> · ` : ''}Gage ${d.site} · ${d.stale ? 'last read' : 'updated'} ${timeAgo(d.time)} · <a href="${usgsLink}" target="_blank" rel="noopener" style="color:var(--mist)">USGS ↗</a></div>
       </div>
       <div class="temp">
         <div class="f">${d.f.toFixed(1)}°F</div>
         <div class="c">${d.c.toFixed(1)}°C</div>
       </div>
-      <div class="badge ${d.cls}">${badgeText(d.cls)}</div>
+      <div class="badge ${d.stale ? 'stale' : d.cls}">${d.stale ? 'Not reporting' : badgeText(d.cls)}</div>
     </div>`;
-  }).join('');
-
-  renderMap(rows);
 }
 
-// Carry the state along so the detail page's "All gages" comes back here.
+function stationList(rows) {
+  return rows.map(stationRow).join('');
+}
+
+// Collapsed by default: it is a footnote about the gage network, not something
+// anyone is choosing a river from. The <details> keeps it one click away rather
+// than hiding the data outright.
+function staleSection(rows, open) {
+  const n = rows.length;
+  return `<details class="stalebox"${open ? ' open' : ''}>
+    <summary>${n} nearby gage${n === 1 ? '' : 's'} stopped reporting
+      <span class="muted">— last readings are over a day old, so they carry no verdict</span></summary>
+    ${stationList(rows)}
+  </details>`;
+}
+
+// Every gage has a built page at /gage/<id>/ carrying its name, its location and
+// a month of readings — that is the page search engines index, so it is the one
+// the list and the map link to. detail.html still answers its old query-string
+// URLs; it just isn't where new links point.
 function detailLink(d) {
-  return `detail.html?site=${d.site}&name=${encodeURIComponent(d.name)}&state=${els.state.value}`;
+  return `/gage/${d.site}/`;
 }
 
 // Gages that land in the same ~54px cell at this zoom are drawn as one pin.
@@ -692,15 +992,24 @@ function clusterRows(rows, zoom) {
 }
 
 function gagePin(d) {
-  const icon = L.divIcon({
-    className: '', iconSize: [46, 46], iconAnchor: [23, 46], popupAnchor: [0, -44],
-    html: `<div class="pin ${d.cls}"><span>${Math.round(d.f)}°</span></div>`,
-  });
   const usgsLink = `https://waterdata.usgs.gov/monitoring-location/${d.site}/`;
-  return L.marker([d.lat, d.lon], { icon, title: d.name })
+  // A stale pin is drawn small and grey, and carries a dot rather than its last
+  // temperature — a number on the map is read as the temperature there now.
+  const size = d.stale ? 26 : 46;
+  const icon = L.divIcon({
+    className: '', iconSize: [size, size], iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size + 2],
+    html: d.stale
+      ? `<div class="pin stale"><span>·</span></div>`
+      : `<div class="pin ${d.cls}"><span>${Math.round(d.f)}°</span></div>`,
+  });
+  const reading = d.stale
+    ? `<div class="ptemp">Not reporting — last reading ${timeAgo(d.time)}, ${d.f.toFixed(1)}°F</div>`
+    : `<div class="ptemp">${d.f.toFixed(1)}°F · ${d.c.toFixed(1)}°C — ${badgeText(d.cls)}</div>`;
+  return L.marker([d.lat, d.lon], { icon, title: d.stale ? `${d.name} (not reporting)` : d.name })
     .bindPopup(
       `<div class="pname">${d.name}</div>`
-      + `<div class="ptemp">${d.f.toFixed(1)}°F · ${d.c.toFixed(1)}°C — ${badgeText(d.cls)}</div>`
+      + reading
       + `<a href="${detailLink(d)}">7-day history →</a><br>`
       + `<a href="${usgsLink}" target="_blank" rel="noopener">USGS gage ${d.site} ↗</a>`);
 }
@@ -708,18 +1017,35 @@ function gagePin(d) {
 function clusterPin(group) {
   const lat = group.reduce((s,d) => s + d.lat, 0) / group.length;
   const lon = group.reduce((s,d) => s + d.lon, 0) / group.length;
-  const cls = worstClass(group);
+  // A cluster is coloured by the gages that are reporting. One dead gage that
+  // last read 70°F must not paint a cluster of cold live water red — and a
+  // cluster with nothing live in it is grey, like the pins inside it.
+  const live = group.filter(d => !d.stale);
+  const cls = live.length ? worstClass(live) : 'stale';
+  const size = live.length ? 44 : 30;
+  const shown = live.length || group.length;
   const icon = L.divIcon({
-    className: '', iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
-    html: `<div class="pin cluster ${cls}"><span>${group.length}</span><span class="sub">gages</span></div>`,
+    className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+    // The face shows how many are reporting, so a cluster of one live gage and
+    // three dead ones reads "1 gage" — not "4" and not "1 gages".
+    html: `<div class="pin cluster ${cls}"><span>${shown}</span>`
+        + `<span class="sub">gage${shown === 1 ? '' : 's'}</span></div>`,
   });
-  const listed = [...group].sort((a,b) => a.f - b.f).slice(0, 6);
+  // Reporting gages first, coldest first within them.
+  const listed = [...group]
+    .sort((a,b) => (a.stale ? 1 : 0) - (b.stale ? 1 : 0) || a.f - b.f)
+    .slice(0, 6);
   const more = group.length - listed.length;
-  const marker = L.marker([lat, lon], { icon, title: `${group.length} gages` })
+  const title = live.length
+    ? `${live.length} gage${live.length === 1 ? '' : 's'} reporting`
+    : `${group.length} gage${group.length === 1 ? '' : 's'}, none reporting`;
+  const marker = L.marker([lat, lon], { icon, title })
     .bindPopup(
-      `<div class="pname">${group.length} gages here</div>`
+      `<div class="pname">${title}</div>`
       + listed.map(d =>
-          `<div class="ptemp"><a href="${detailLink(d)}">${d.name}</a> — ${d.f.toFixed(1)}°F</div>`).join('')
+          `<div class="ptemp"><a href="${detailLink(d)}">${d.name}</a> — `
+          + (d.stale ? `not reporting` : `${d.f.toFixed(1)}°F`) + `</div>`).join('')
       + (more > 0 ? `<div class="ptemp">+${more} more — zoom in</div>` : ''));
   marker.on('dblclick', () => map.setView([lat, lon], map.getZoom() + 2));
   return marker;
@@ -748,12 +1074,30 @@ function renderMap(rows) {
   if (!mapRows.length) { markerLayer.clearLayers(); return; }
   fitToRows();
   drawMarkers();
+  drawHere();
   if (currentView === 'map') setTimeout(showMap, 0);
+}
+
+// A distance list is much easier to read against a mark for where you are.
+let hereMarker = null;
+function drawHere() {
+  if (!map) return;
+  if (hereMarker) { map.removeLayer(hereMarker); hereMarker = null; }
+  if (mode !== 'near' || !here) return;
+  hereMarker = L.circleMarker([here.lat, here.lon], {
+    radius: 7, color: '#eef4f2', weight: 2, fillColor: '#4fb286', fillOpacity: 1,
+  }).addTo(map).bindPopup('<div class="pname">You are here</div>');
 }
 
 function fitToRows() {
   if (!map || !mapRows.length) return;
-  map.fitBounds(mapRows.map(d => [d.lat, d.lon]), { padding: [40, 40], maxZoom: 11 });
+  // Frame the gages that are reporting. A dead gage on the far edge of the
+  // search would otherwise zoom the map out past everything worth seeing.
+  const framed = mapRows.some(d => !d.stale) ? mapRows.filter(d => !d.stale) : mapRows;
+  const pts = framed.map(d => [d.lat, d.lon]);
+  // Frame the visitor too, or "near me" opens on a map they are not on.
+  if (mode === 'near' && here) pts.push([here.lat, here.lon]);
+  map.fitBounds(pts, { padding: [40, 40], maxZoom: 11 });
 }
 
 // A hidden map has no size, so anything fitted while it was hidden framed
@@ -763,6 +1107,7 @@ function showMap() {
   map.invalidateSize();
   fitToRows();
   drawMarkers();
+  drawHere();
 }
 
 function setView(v) {
@@ -772,6 +1117,10 @@ function setView(v) {
   document.getElementById('map').style.display = v === 'map' ? 'block' : 'none';
   els.stations.style.display = v === 'map' ? 'none' : 'block';
   if (v === 'map') setTimeout(showMap, 0);
+}
+
+function fmtMiles(mi) {
+  return mi < 10 ? `${mi.toFixed(1)} mi` : `${Math.round(mi)} mi`;
 }
 
 function timeAgo(iso) {
@@ -785,12 +1134,23 @@ function timeAgo(iso) {
 }
 
 els.refresh.addEventListener('click', () => load({ force: true }));
-els.state.addEventListener('change', () => load());
+// Picking a state is itself a request to stop using location.
+els.state.addEventListener('change', () => setMode('state'));
+els.nearme.addEventListener('click', () => setMode(mode === 'near' ? 'state' : 'near'));
 els.filter.addEventListener('input', render);
 els.sort.addEventListener('change', render);
 document.querySelectorAll('#viewtoggle button').forEach(b =>
   b.addEventListener('click', () => setView(b.dataset.view)));
 els.state.value = initialState();
+// Only reopen in "near me" if that is how the visitor left it. A cold visitor
+// never gets a location prompt they did not ask for; a returning one whose
+// browser still holds the grant gets their list without touching anything.
+// An explicit ?state= — the link back from a gage page — always wins.
+let storedMode = null;
+try { storedMode = localStorage.getItem(MODE_KEY); } catch (e) { /* storage blocked */ }
+const askedForState = isKnownState(new URLSearchParams(location.search).get('state'));
+mode = (storedMode === 'near' && !askedForState) ? 'near' : 'state';
+syncModeUi();
 load();
 </script>
 </body>

@@ -1,4 +1,4 @@
-# Static site: trout water-temp dashboard.
+# Static site: trout water-temp dashboard, plus a page for every river and gage.
 # nginx-unprivileged already runs as UID 101 and listens on 8080 — no root needed.
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
@@ -6,12 +6,11 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY security-headers.conf /etc/nginx/security-headers.conf
 
-# The app files. They contain no secrets — safe to bake in.
-COPY trout_temps.html detail.html logo.png favicon.ico robots.txt sitemap.xml /usr/share/nginx/html/
-# Leaflet is vendored rather than pulled from a CDN, so the CSP can stay on 'self'.
-COPY vendor/ /usr/share/nginx/html/vendor/
-# Serve the main page at /, replacing the base image's stock index.html
-COPY trout_temps.html /usr/share/nginx/html/index.html
+# dist/ is the whole document root, written by `node build/generate.mjs`: the
+# hand-written pages, the shared assets, vendored Leaflet, and the ~2,300
+# generated river and gage pages with their sitemaps. It is not in git — build
+# it before building the image, or this COPY fails and tells you so.
+COPY dist/ /usr/share/nginx/html/
 
 EXPOSE 8080
 # Image's default CMD already starts nginx; no need to override.

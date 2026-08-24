@@ -46,9 +46,9 @@ the item becomes an ordinary to-do again (the issue itself is left alone).
 HTML comments are stripped on read, so this block never reaches the board.
 -->
 
-Water-temperature dashboard for fly fishers: pulls live USGS gage readings (parameter 00010) and flags each river safe, caution or stop against the 65°F coldwater-trout recovery threshold, so you know whether to fish a stretch or leave it alone. Two static pages with no backend — a state-wide list/map view and a per-gage detail page with 7-day charts for temperature, discharge, gage height, turbidity and dissolved oxygen — served by nginx-unprivileged on K3s.
+Water-temperature dashboard for fly fishers: pulls live USGS gage readings (parameter 00010) and flags each river safe, caution or stop against the 65°F coldwater-trout recovery threshold, so you know whether to fish a stretch or leave it alone. A state-wide list/map view, a page for every river and every gage with a month of daily readings baked into the markup, and 7-day charts for temperature, discharge, gage height, turbidity and dissolved oxygen — served by nginx-unprivileged on K3s.
 
-Live at https://trout-temps.nickknows.net. Everything talks to USGS directly from the browser, so there is no API key, no database and nothing to keep in sync; Leaflet is vendored into the image, and the CSP is pinned to the USGS, CARTO and Google Analytics origins the pages actually use. The deployment runs unprivileged and read-only on K3s with probes and resource limits, and the page logic — classification, USGS parsing, chart scaling, caching, clustering — is covered by a node --test suite that runs the shipped inline scripts.
+Live at https://trout-temps.nickknows.net. Everything talks to USGS directly from the browser, so there is no API key, no database and nothing to keep in sync; Leaflet is vendored into the image, and the CSP is pinned to the USGS, CARTO and Google Analytics origins the pages actually use. A build step reads USGS ahead of time and writes ~2,350 river, gage and index pages so a search for a specific river has something to match — the dashboard alone was one URL whose river names only ever arrived over fetch. The deployment runs unprivileged and read-only on K3s with probes and resource limits, and the page logic — classification, USGS parsing, chart scaling, caching, clustering, river-name parsing and the page templates — is covered by a node --test suite that runs the shipped scripts.
 
 ## Todos
 
@@ -89,3 +89,16 @@ Live at https://trout-temps.nickknows.net. Everything talks to USGS directly fro
 - [x] Re-apply the security headers inside every location block, since nginx drops inherited add_header
 - [x] Re-fit the map when the map view is opened, so pins are not framed by a zero-size container
 - [x] Call out the per-species angling thresholds from the Keep Fish Wet review on the dashboard
+- [x] Generate a page per river and per gage from USGS, so a search for one river has something to match
+- [x] Split the shared gage CSS and JS out of detail.html so 1,450 generated pages don't each carry a copy
+- [x] Sitemap index over pages, rivers and gages, and a weekly CI rebuild so the baked readings stay current
+- [x] Score the threshold against the daily mean when a gage publishes no daily maximum, instead of counting zero days over 65°F
+- [x] Relative redirects in nginx, so the trailing-slash 301 stops pointing at the container's own port
+- [ ] Verify the site in Google Search Console and submit /sitemap.xml
+- [x] Mark gages whose newest reading is over a day old as not reporting, drop their safety verdict, sink them below the live ones and keep them out of the summary counts
+- [x] "Near me": read a box around the visitor instead of a state, sorted by distance, so the closest cold water is not hidden by a state line
+- [x] Add a 1200x630 social card image so the pages get a large summary card instead of the square one
+- [x] A page per fishing town listing every gage within 40 miles, so "near me" has a crawlable equivalent
+- [x] Grey the stale gages down on the map and put them in their own section at the end of the list
+- [ ] Cluster the town pages that overlap heavily, so two towns 8 miles apart do not publish the same list twice
+- [ ] Draw the place pages a small static map, since they are the pages people land on cold

@@ -14,11 +14,17 @@ on:
       - nginx.conf
       - security-headers.conf
       - robots.txt
-      - sitemap.xml
       - Dockerfile
+      - 'assets/**'
+      - 'build/**'
       - 'vendor/**'
       - 'tests/**'
       - .github/workflows/cicd.yaml
+  # The river and gage pages carry a month of USGS readings baked into their
+  # markup. Nothing in the repo changes when the water does, so rebuild weekly
+  # to keep those numbers — and the sitemap's lastmod dates — honest.
+  schedule:
+    - cron: '17 9 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -32,8 +38,8 @@ jobs:
         with:
           node-version: '22'
       - name: Run the page-logic tests
-        # The suite pulls the inline page scripts out of the HTML and runs them,
-        # so a syntax error fails here too.
+        # The suite runs the shipped page scripts and the page generator, so a
+        # syntax error in either fails here too.
         run: node --test tests/*.test.mjs
       - name: Lint nginx config
         run: |
@@ -50,6 +56,14 @@ jobs:
     steps:
       - name: Check out the code repository
         uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate the river and gage pages
+        # Reads USGS live, writes dist/ — the document root the image serves.
+        # Roughly 2,300 pages and three sitemaps; a couple of minutes at worst.
+        run: node build/generate.mjs
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:

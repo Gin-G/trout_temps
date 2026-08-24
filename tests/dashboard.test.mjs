@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { loadDashboard, flush } from './harness.mjs';
 
 // A trimmed-down shape of what waterservices.usgs.gov actually returns.
+// Timestamps are relative to now: the page treats a reading over a day old as
+// stale, so a fixture pinned to a fixed date starts failing the moment that
+// date is a day in the past. `ageHours` is how a test asks for a stale one.
 function usgsPayload(sites) {
   return {
     value: {
@@ -13,7 +16,10 @@ function usgsPayload(sites) {
           geoLocation: s.geo === false ? {} : { geogLocation: { latitude: s.lat ?? 39.1, longitude: s.lon ?? -105.2 } },
         },
         variable: { variableCode: [{ value: '00010' }] },
-        values: [{ value: (s.values ?? []).map(v => ({ value: String(v), dateTime: '2026-08-20T12:00:00.000-06:00' })) }],
+        values: [{ value: (s.values ?? []).map(v => ({
+          value: String(v),
+          dateTime: new Date(Date.now() - (s.ageHours ?? 1) * 3600e3).toISOString(),
+        })) }],
       })),
     },
   };
@@ -117,13 +123,13 @@ test('loading a state remembers it', async () => {
   assert.equal(localStorage.getItem('troutTemps.state'), 'id');
 });
 
-test('detail links carry the gage and the state to come back to', () => {
+test('gage links point at the built page for that gage', () => {
+  // The generated /gage/<id>/ page is the indexable one, so the list and the map
+  // send visitors and crawlers to the same URL.
   const { api } = loadDashboard({ search: '?state=nm' });
   api.els.state.value = 'nm';
   const href = api.detailLink({ site: '08279500', name: 'RIO GRANDE DEL RANCHO' });
-  assert.ok(href.startsWith('detail.html?site=08279500'));
-  assert.ok(href.includes('name=RIO%20GRANDE%20DEL%20RANCHO'));
-  assert.ok(href.endsWith('&state=nm'));
+  assert.equal(href, '/gage/08279500/');
 });
 
 test('readings are cached per state until Refresh forces a re-fetch', async () => {

@@ -2,4 +2,10 @@
 User-agent: *
 Allow: /
 
+# detail.html is the old query-string view of a gage. Every gage now has a built
+# page at /gage/<id>/ that says the river's name in its markup, and detail.html
+# carries a canonical pointing there — so this is a courtesy, not the mechanism.
+Disallow: /detail.html
+
+# An index of three: pages, rivers, gages.
 Sitemap: https://trout-temps.nickknows.net/sitemap.xml

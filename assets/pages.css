@@ -1,0 +1,123 @@
+/* Layered on top of gage.css, which already defines the palette and the shell.
+   Everything here belongs to the generated river/state/gage pages. */
+
+.crumbs {
+  margin: 22px 0 0; font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px; letter-spacing: 0.04em; color: var(--mist);
+}
+.crumbs a { color: var(--mist); text-decoration: none; }
+.crumbs a:hover { color: var(--safe); }
+.crumbs .sep { margin: 0 8px; opacity: 0.45; }
+.crumbs [aria-current] { color: var(--paper); }
+
+.lede { margin: 22px 0; font-size: 18px; max-width: 62ch; }
+.prose { padding-bottom: 8px; }
+.prose h2 {
+  margin: 36px 0 12px; font-size: 22px; font-weight: 400; line-height: 1.2;
+}
+.prose p { margin: 0 0 14px; max-width: 68ch; }
+.prose a { color: var(--safe); }
+.muted { color: var(--mist); font-family: ui-monospace, monospace; font-size: 12px; }
+.more { margin-top: 26px; font-family: ui-monospace, monospace; font-size: 13px; }
+
+/* --- the no-JS stat block ------------------------------------------------ */
+table.stats, table.gages {
+  width: 100%; border-collapse: collapse; margin: 8px 0 20px;
+}
+table.stats caption, table.gages caption {
+  text-align: left; color: var(--mist); font-family: ui-monospace, monospace;
+  font-size: 12px; padding-bottom: 10px; line-height: 1.5;
+}
+table.stats th, table.stats td,
+table.gages th, table.gages td {
+  padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left;
+  vertical-align: baseline;
+}
+table.stats th[scope="row"], table.gages th[scope="row"] { font-weight: 400; }
+table.stats td { font-family: ui-monospace, monospace; font-size: 15px; white-space: nowrap; }
+table.stats td.c { color: var(--mist); font-size: 13px; }
+table.gages thead th {
+  font-family: ui-monospace, monospace; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--mist); font-weight: 400;
+}
+table.gages td.num { font-family: ui-monospace, monospace; font-size: 15px; white-space: nowrap; }
+table.gages th[scope="row"] a { color: var(--paper); text-decoration: none; }
+table.gages th[scope="row"] a:hover { color: var(--safe); }
+table.gages th[scope="row"] .muted { display: block; margin-top: 3px; }
+.tablewrap { overflow-x: auto; }
+.pending { color: var(--mist); }
+
+.badge {
+  display: inline-block; padding: 4px 9px; border-radius: 3px; white-space: nowrap;
+  font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.04em;
+}
+.badge.safe    { background: rgba(79,178,134,0.16);  color: var(--safe); }
+.badge.caution { background: rgba(224,164,88,0.16);  color: var(--caution); }
+.badge.danger  { background: rgba(214,90,74,0.16);   color: var(--danger); }
+
+/* --- the baked sparkline ------------------------------------------------- */
+.spark { margin: 6px 0 22px; }
+.spark svg { width: 100%; height: auto; display: block; }
+.spark .g { stroke: var(--line); stroke-width: 1; }
+.spark .gt { fill: var(--mist); font-family: ui-monospace, monospace; font-size: 10px; }
+.spark figcaption {
+  margin-top: 8px; color: var(--mist);
+  font-family: ui-monospace, monospace; font-size: 11px;
+}
+
+dl.facts {
+  display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px;
+  margin: 14px 0 20px; font-size: 14px;
+}
+dl.facts dt { color: var(--mist); font-family: ui-monospace, monospace; font-size: 12px; }
+dl.facts dd { font-family: ui-monospace, monospace; }
+
+ul.linklist { list-style: none; margin: 10px 0 20px; }
+ul.linklist li { padding: 7px 0; border-bottom: 1px solid var(--line); }
+ul.linklist a { color: var(--paper); text-decoration: none; }
+ul.linklist a:hover { color: var(--safe); }
+
+/* --- index pages --------------------------------------------------------- */
+.alphaindex {
+  display: flex; flex-wrap: wrap; gap: 4px; margin: 20px 0 8px;
+  font-family: ui-monospace, monospace; font-size: 13px;
+}
+.alphaindex a {
+  padding: 5px 10px; color: var(--mist); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 3px;
+}
+.alphaindex a:hover { color: var(--safe); border-color: var(--safe); }
+.alphablock { margin: 26px 0; }
+.alphablock h2 {
+  font-size: 15px; font-weight: 400; color: var(--mist); margin-bottom: 10px;
+  font-family: ui-monospace, monospace; letter-spacing: 0.16em;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  scroll-margin-top: 12px;
+}
+ul.rivergrid, ul.stategrid {
+  list-style: none; display: grid; gap: 2px 26px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+}
+ul.rivergrid li, ul.stategrid li {
+  padding: 8px 0; display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+}
+ul.rivergrid a, ul.stategrid a { color: var(--paper); text-decoration: none; }
+ul.rivergrid a:hover, ul.stategrid a:hover { color: var(--safe); }
+ul.stategrid { margin: 18px 0; }
+ul.stategrid li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+ul.stategrid a { font-size: 18px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: auto; }
+.dot.safe { background: var(--safe); }
+.dot.caution { background: var(--caution); }
+.dot.danger { background: var(--danger); }
+
+@media (max-width: 640px) {
+  .lede { font-size: 16px; }
+  dl.facts { grid-template-columns: 1fr; gap: 2px 0; }
+  dl.facts dd { margin-bottom: 10px; }
+}
+
+/* The live "Now" column, coloured by /assets/live.js once a reading lands. */
+td.num.live.safe    { color: var(--safe); }
+td.num.live.caution { color: var(--caution); }
+td.num.live.danger  { color: var(--danger); }
