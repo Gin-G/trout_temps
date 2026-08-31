@@ -19,7 +19,7 @@ import { STATES, collectState, groupRivers, DAYS } from './usgs.mjs';
 import { slugify } from './rivers.mjs';
 import { collectPlaces } from './places.mjs';
 import { gagePage, riverPage, statePage, riversIndexPage, placePage, placesIndexPage,
-         ORIGIN, esc } from './templates.mjs';
+         placeAliasPage, ORIGIN, esc } from './templates.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -142,6 +142,7 @@ async function main() {
   }
 
   const urls = { index: [], river: [], gage: [], place: [] };
+  let aliases = 0;
   let pages = 0;
 
   for (const state of collected) {
@@ -168,6 +169,13 @@ async function main() {
       await write(args.out, path.join(placePath, 'index.html'), placePage(place, stateRef));
       urls.place.push({ loc: placePath, priority: '0.8' });
       pages++;
+      // The towns this one absorbed keep their URLs but not their tables, and
+      // stay out of the sitemap: they canonicalise to the page above.
+      for (const alias of place.aliases || []) {
+        const aliasPath = `/near/${alias.slug}-${state.code}/`;
+        await write(args.out, path.join(aliasPath, 'index.html'), placeAliasPage(alias, place, stateRef));
+        aliases++;
+      }
     }
     await write(args.out, `rivers/${state.slug}/index.html`, statePage(stateRef, state.rivers, state.places));
     urls.index.push({ loc: `/rivers/${state.slug}/`, priority: '0.9', changefreq: 'daily' });
@@ -203,9 +211,10 @@ async function main() {
   await cp(path.join(ROOT, 'trout_temps.html'), path.join(args.out, 'index.html'));
 
   const totalUrls = urls.index.length + urls.river.length + urls.gage.length + urls.place.length;
-  console.log(`\n${pages} pages written, ${totalUrls} URLs in the sitemap.`);
+  console.log(`\n${pages + aliases} pages written, ${totalUrls} URLs in the sitemap.`);
   console.log(`  ${urls.river.length} river pages, ${urls.place.length} town pages, `
     + `${urls.gage.length} gage pages, ${urls.index.length} index pages.`);
+  console.log(`  ${aliases} merged towns canonicalised onto a neighbour, not in the sitemap.`);
 }
 
 main().catch((e) => {

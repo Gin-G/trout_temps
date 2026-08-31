@@ -6,7 +6,7 @@
 // sentence. The live reading is layered on top afterwards for the human.
 
 import { DAYS } from './usgs.mjs';
-import { PLACE_RADIUS_MI } from './places.mjs';
+import { PLACE_RADIUS_MI, PLACE_MAX_GAGES } from './places.mjs';
 
 export const ORIGIN = 'https://trout-temps.nickknows.net';
 const GA = 'G-08D62NHKX9';
@@ -29,6 +29,13 @@ const cFromF = (f) => (f - 32) * 5 / 9;
 // gets its own vocabulary. Scoring it on the average would call a river that
 // broke 65°F on twenty of thirty days "Safe", which is exactly backwards — the
 // question is how often the daily high crossed the line.
+// "Boring", "Damascus and Gresham", "Boring, Damascus and Gresham".
+export function listSentence(names) {
+  const list = names.filter(Boolean);
+  if (list.length <= 1) return list[0] || '';
+  return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
+
 export function periodVerdict(stats) {
   if (!stats || !stats.days) return null;
   const share = stats.daysOver65 / stats.days;
@@ -37,7 +44,7 @@ export function periodVerdict(stats) {
   return { cls: 'caution', label: `Over 65&deg;F ${stats.daysOver65} of ${stats.days} days` };
 }
 
-function head({ title, description, canonical, jsonLd = [], extraCss = [] }) {
+function head({ title, description, canonical, jsonLd = [], extraCss = [], robots = 'index,follow,max-image-preview:large' }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,7 +53,7 @@ function head({ title, description, canonical, jsonLd = [], extraCss = [] }) {
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(canonical)}">
-<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="robots" content="${esc(robots)}">
 <meta name="theme-color" content="#0a1a1f">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Trout Temps">
@@ -511,7 +518,7 @@ export function statePage(state, rivers, places = []) {
 
 ${places.length ? `<section class="wrap prose">
   <h2>Or start from a town</h2>
-  <p>Every gage within ${PLACE_RADIUS_MI} miles of where you are staying, nearest first.</p>
+  <p>The nearest gages to where you are staying, closest first.</p>
   <ul class="rivergrid">
     ${places.map((pl) => `<li><a href="/near/${pl.slug}-${state.code}/">${esc(pl.name)}</a>
       <span class="muted">${pl.gages.length} gages</span></li>`).join('\n    ')}
@@ -586,6 +593,13 @@ export function riversIndexPage(states) {
 export function placePage(place, state) {
   const path = `/near/${place.slug}-${state.code}/`;
   const n = place.gages.length;
+  // Towns whose gage list had converged on this one. They no longer have pages
+  // of their own, so this page has to carry their names or the search term goes
+  // nowhere: naming them here is the whole reason merging is not just deletion.
+  const radius = place.radiusMi || PLACE_RADIUS_MI;
+  const aliases = place.aliases || [];
+  const aliasNames = aliases.map((a) => a.name);
+  const alsoCovers = aliasNames.length ? listSentence(aliasNames) : '';
   const withStats = place.gages.filter((g) => g.stats && g.stats.days);
   const coldest = withStats
     .filter((g) => g.stats.averageF != null)
@@ -593,11 +607,12 @@ export function placePage(place, state) {
   const overCount = withStats.filter((g) => g.stats.daysOver65 > 0).length;
 
   const title = `Water Temperature near ${place.name}, ${state.name} — ${n} Live USGS Gages`;
+  const covers = alsoCovers ? ` Also covers ${alsoCovers}.` : '';
   const desc = coldest
-    ? `Live water temperature for ${n} trout gages within ${PLACE_RADIUS_MI} miles of ${place.name}, ${state.name}. `
-      + `Coldest recently: ${esc(coldest.river)} at ${f1(coldest.stats.averageF)}°F. Check before you drive out.`
-    : `Live water temperature for ${n} trout gages within ${PLACE_RADIUS_MI} miles of ${place.name}, ${state.name}, `
-      + `scored against the 65°F catch-and-release threshold.`;
+    ? `Live water temperature for the ${n} nearest trout gages to ${place.name}, ${state.name}. `
+      + `Coldest recently: ${coldest.river} at ${f1(coldest.stats.averageF)}°F.${covers}`
+    : `Live water temperature for the ${n} nearest trout gages to ${place.name}, ${state.name}, `
+      + `scored against the 65°F catch-and-release threshold.${covers}`;
 
   const trail = [
     { name: 'Rivers', path: '/rivers/' },
@@ -621,7 +636,8 @@ export function placePage(place, state) {
       name: `Where can I fish near ${place.name}, ${state.name} right now?`,
       acceptedAnswer: {
         '@type': 'Answer',
-        text: `${n} USGS gages within ${PLACE_RADIUS_MI} miles of ${place.name} report water temperature.`
+        text: `${n} USGS gages within ${radius} miles of ${place.name} report water temperature.`
+          + (alsoCovers ? ` The same water is the closest cold water to ${alsoCovers}.` : '')
           + (coldest ? ` Over the last ${coldest.stats.days} days the coldest of them was ${coldest.river}, averaging ${f1(coldest.stats.averageF)}°F.` : '')
           + ` This page reads all of them live, so you can pick a cold stretch before you drive out.`,
       },
@@ -661,26 +677,28 @@ export function placePage(place, state) {
 
 <header>
   <div class="wrap">
-    <div class="eyebrow">${esc(state.name)} · ${n} gage${n === 1 ? '' : 's'} within ${PLACE_RADIUS_MI} miles</div>
+    <div class="eyebrow">${esc(state.name)} · ${n} gage${n === 1 ? '' : 's'} within ${radius} miles</div>
     <h1>Water Temperature near ${esc(place.name)}, ${esc(state.name)}</h1>
-    <div class="sub">Every USGS gage in reach, nearest first, scored against the 65&deg;F trout threshold</div>
+    <div class="sub">The nearest USGS gages, closest first, scored against the 65&deg;F trout threshold</div>
+    ${alsoCovers ? `<p class="alsocovers">Also the closest cold water to ${esc(alsoCovers)}.</p>` : ''}
   </div>
 </header>
 
 <div class="wrap">
   <p class="sr-only" id="status" role="status" aria-live="polite">Loading live readings…</p>
   <p class="lede">${coldest
-    ? `Over the last ${coldest.stats.days} days the coldest water within ${PLACE_RADIUS_MI} miles of ${esc(place.name)} `
+    ? `Over the last ${coldest.stats.days} days the coldest water within ${radius} miles of ${esc(place.name)} `
       + `was ${esc(coldest.river)}, averaging ${f1(coldest.stats.averageF)}&deg;F. `
       + `${overCount === 0
           ? `None of the gages here broke the 65&deg;F threshold in that time.`
           : `${overCount} of the ${withStats.length} gages with recent summaries broke 65&deg;F at least once.`}`
     : `USGS has not published recent daily summaries for the gages near ${esc(place.name)}. The live readings below come straight from them.`}</p>
 
-  <h2>Gages within ${PLACE_RADIUS_MI} miles of ${esc(place.name)}</h2>
+  <h2>Nearest gages to ${esc(place.name)}</h2>
   <div class="tablewrap">
   <table class="gages">
-    <caption>Nearest first. Distances are from ${esc(place.name)}; the live column reads USGS when this page loads.</caption>
+    <caption>The ${n} closest of the gages within ${radius} miles, nearest first. Distances are from
+      ${esc(place.name)}; the live column reads USGS when this page loads.</caption>
     <thead>
       <tr><th scope="col">Gage</th><th scope="col">Distance</th><th scope="col">Now</th>
           <th scope="col">${DAYS}-day avg</th><th scope="col">Last ${DAYS} days</th></tr>
@@ -712,14 +730,61 @@ ${rows}
 + foot(`<script src="/assets/live.js"></script>`);
 }
 
+// A town whose gage list turned out to be the same water as a neighbour's.
+//
+// The URL stays alive because it was published and may be linked, but it does
+// not repeat the table: the canonical points at the page that does, so the two
+// are scored as one page rather than competing with each other. Left out of the
+// sitemap for the same reason — a crawler should be spending its budget on the
+// page that has the content.
+export function placeAliasPage(alias, primary, state) {
+  const path = `/near/${alias.slug}-${state.code}/`;
+  const target = `/near/${primary.slug}-${state.code}/`;
+  const title = `Water Temperature near ${alias.name}, ${state.name}`;
+  const desc = `The nearest trout gages to ${alias.name}, ${state.name} are the same ones we list for `
+    + `${primary.name}. Live USGS water temperature, scored against the 65°F threshold.`;
+
+  const trail = [
+    { name: 'Rivers', path: '/rivers/' },
+    { name: state.name, path: `/rivers/${state.slug}/` },
+    { name: `Near ${alias.name}`, path },
+  ];
+
+  return head({
+    title,
+    description: desc,
+    canonical: ORIGIN + target,
+    jsonLd: [breadcrumbs(trail)],
+  })
++ `<div class="wrap">${crumbHtml(trail)}</div>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">${esc(state.name)}</div>
+    <h1>Water Temperature near ${esc(alias.name)}, ${esc(state.name)}</h1>
+    <div class="sub">The same water we track for ${esc(primary.name)}</div>
+  </div>
+</header>
+
+<section class="wrap prose">
+  <p class="lede">Every USGS gage within reach of ${esc(alias.name)} is also within reach of
+  ${esc(primary.name)}, so rather than print the same table twice we keep one page for both.</p>
+  <p class="more"><a href="${target}">Water temperature near ${esc(primary.name)}, ${esc(state.name)}</a>
+   · <a href="/rivers/${state.slug}/">All ${esc(state.name)} trout streams</a>
+   · <a href="/near/">Every town we cover</a></p>
+</section>
+`
++ foot();
+}
+
 // --- places index -----------------------------------------------------------
 
 export function placesIndexPage(states) {
   const path = '/near/';
   const total = states.reduce((n, s) => n + s.places.length, 0);
   const title = `Trout Water Temperatures by Town — ${total} Places`;
-  const desc = `Live trout water temperature for every gage within ${PLACE_RADIUS_MI} miles of `
-    + `${total} towns across ${states.length} states.`;
+  const desc = `Live trout water temperature for the nearest gages to ${total} towns `
+    + `across ${states.length} states, scored against the 65°F catch-and-release threshold.`;
   const trail = [{ name: 'Near a town', path }];
   const jsonLd = [breadcrumbs(trail), {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
@@ -733,7 +798,7 @@ export function placesIndexPage(states) {
   <div class="wrap">
     <div class="eyebrow">${total} towns · ${states.length} states</div>
     <h1>Trout Water Temperatures by Town</h1>
-    <div class="sub">Every USGS gage within ${PLACE_RADIUS_MI} miles of where you are staying</div>
+    <div class="sub">The nearest USGS gages to where you are staying, closest first</div>
   </div>
 </header>
 
@@ -747,7 +812,9 @@ export function placesIndexPage(states) {
     <h2 id="S${s.slug}">${esc(s.name)}</h2>
     <ul class="rivergrid">
       ${s.places.map((pl) => `<li><a href="/near/${pl.slug}-${s.code}/">${esc(pl.name)}</a>
-        <span class="muted">${pl.gages.length} gages</span></li>`).join('\n      ')}
+        <span class="muted">${pl.gages.length} gages</span>${(pl.aliases || []).length
+          ? `<span class="muted alsolist">also ${esc(listSentence(pl.aliases.map((a) => a.name)))}</span>`
+          : ''}</li>`).join('\n      ')}
     </ul>
   </section>`).join('\n  ')}
 </div>

@@ -103,6 +103,10 @@ ul.rivergrid li, ul.stategrid li {
 }
 ul.rivergrid a, ul.stategrid a { color: var(--paper); text-decoration: none; }
 ul.rivergrid a:hover, ul.stategrid a:hover { color: var(--safe); }
+/* The towns a page absorbed, named so the search term still lands somewhere. */
+.alsolist { flex-basis: 100%; font-size: 13px; opacity: 0.72; }
+p.alsocovers { margin: 10px 0 0; font-size: 15px; color: var(--mist); }
+
 ul.stategrid { margin: 18px 0; }
 ul.stategrid li { padding: 12px 0; border-bottom: 1px solid var(--line); }
 ul.stategrid a { font-size: 18px; }

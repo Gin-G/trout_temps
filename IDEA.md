@@ -94,11 +94,11 @@ Live at https://trout-temps.nickknows.net. Everything talks to USGS directly fro
 - [x] Sitemap index over pages, rivers and gages, and a weekly CI rebuild so the baked readings stay current
 - [x] Score the threshold against the daily mean when a gage publishes no daily maximum, instead of counting zero days over 65°F
 - [x] Relative redirects in nginx, so the trailing-slash 301 stops pointing at the container's own port
-- [ ] Verify the site in Google Search Console and submit /sitemap.xml
+- [x] Verify the site in Google Search Console and submit /sitemap.xml
 - [x] Mark gages whose newest reading is over a day old as not reporting, drop their safety verdict, sink them below the live ones and keep them out of the summary counts
 - [x] "Near me": read a box around the visitor instead of a state, sorted by distance, so the closest cold water is not hidden by a state line
 - [x] Add a 1200x630 social card image so the pages get a large summary card instead of the square one
 - [x] A page per fishing town listing every gage within 40 miles, so "near me" has a crawlable equivalent
 - [x] Grey the stale gages down on the map and put them in their own section at the end of the list
-- [ ] Cluster the town pages that overlap heavily, so two towns 8 miles apart do not publish the same list twice
+- [x] Cluster the town pages that overlap heavily, so two towns 8 miles apart do not publish the same list twice
 - [ ] Draw the place pages a small static map, since they are the pages people land on cold
