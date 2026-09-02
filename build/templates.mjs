@@ -590,6 +590,91 @@ export function riversIndexPage(states) {
 // The crawlable answer to "what is close to me". The dashboard's location mode
 // needs a browser and a permission prompt; a search engine has neither, so the
 // same question lives here as one URL per fishing town.
+// A small map of the gages around a town, drawn at build time.
+//
+// No tiles and no JavaScript: these are the pages people land on cold from a
+// search, and a map that needs a script and a round-trip to CARTO before it
+// says anything is a map they never see. What matters here is not the coastline
+// -- it is which way to drive and how far, and a plain projection answers that
+// the moment the HTML arrives.
+//
+// North is up. The rings are miles from town, so distance is readable without a
+// legend, and each dot carries its verdict colour so the shape of the problem
+// ("everything downstream is warm, the two up the canyon are not") is visible
+// before the table is read.
+export function placeMap(place, state) {
+  const gages = (place.gages || []).filter((g) => Number.isFinite(g.lat) && Number.isFinite(g.lon));
+  if (gages.length < 2) return '';
+
+  const latRad = (place.lat * Math.PI) / 180;
+  // Equirectangular about the town: at this scale the error is far below the
+  // width of a dot, and it keeps the projection to two multiplications.
+  const pts = gages.map((g) => ({
+    g,
+    x: (g.lon - place.lon) * 69 * Math.cos(latRad),
+    y: (g.lat - place.lat) * 69,
+  }));
+
+  // Frame the water, not the compass. Gages sit on rivers, and rivers run one
+  // way out of a town — centring the town in a square leaves most of the frame
+  // empty. The town keeps its true position inside the box, so the rings still
+  // read as distance from it; they just run off the edge like range rings on a
+  // real map.
+  const reach = Math.max(0.5, ...pts.map((p) => Math.hypot(p.x, p.y)));
+  let [x0, x1] = [Math.min(0, ...pts.map((p) => p.x)), Math.max(0, ...pts.map((p) => p.x))];
+  let [y0, y1] = [Math.min(0, ...pts.map((p) => p.y)), Math.max(0, ...pts.map((p) => p.y))];
+  // Clamp the shape to somewhere between 5:3 and square. Gages string out along
+  // a river, so the raw extent is often a sliver -- and a town with two gages on
+  // its doorstep and a third twenty miles downstream would otherwise frame as a
+  // near-empty column taller than the text beside it. This is meant to be a
+  // small map, so height never exceeds width, and the sparse case spends its
+  // emptiness sideways where it costs the reader nothing.
+  const widen = (a, b, want) => {
+    const short = (want - (b - a)) / 2;
+    return short > 0 ? [a - short, b + short] : [a, b];
+  };
+  const span = Math.max(x1 - x0, y1 - y0, 1);
+  [x0, x1] = widen(x0, x1, span * 0.62);
+  [y0, y1] = widen(y0, y1, span * 0.62);
+  [x0, x1] = widen(x0, x1, y1 - y0);       // never taller than wide
+  const margin = Math.max(x1 - x0, y1 - y0) * 0.11;
+  [x0, x1, y0, y1] = [x0 - margin, x1 + margin, y0 - margin, y1 + margin];
+
+  const W = 400;
+  const scale = W / (x1 - x0);
+  const H = Math.round((y1 - y0) * scale);
+  const px = (x) => ((x - x0) * scale).toFixed(1);
+  const py = (y) => ((y1 - y) * scale).toFixed(1);
+  const tx = px(0), ty = py(0);
+
+  // Two or three rings at a round number of miles, whatever the reach.
+  const step = [1, 2, 5, 10, 20, 25, 50].find((s) => reach / s <= 3) || 50;
+  const rings = [];
+  for (let m = step; m <= reach + step * 0.01; m += step) rings.push(m);
+
+  const dot = (p) => {
+    const v = periodVerdict(p.g.stats);
+    const label = `${p.g.station}, ${Math.round(p.g.miles)} miles`
+      + (v ? `. ${v.label.replace(/&deg;/g, ' degrees ')}` : '. No recent daily summaries');
+    return `<a href="/gage/${esc(p.g.id)}/">`
+      + `<circle class="pin ${v ? v.cls : 'unknown'}" cx="${px(p.x)}" cy="${py(p.y)}" r="6"/>`
+      + `<title>${esc(label)}</title></a>`;
+  };
+
+  return `<figure class="placemap">
+  <svg viewBox="0 0 ${W} ${H}" role="img"
+       aria-label="Map of the ${gages.length} gages nearest ${esc(place.name)}, ${esc(state.name)}. North is up; rings are ${step}-mile intervals from the town. The table below lists the same gages.">
+    <g class="rings">${rings.map((m) => `<circle cx="${tx}" cy="${ty}" r="${(m * scale).toFixed(1)}"/>`).join('')}</g>
+    <circle class="town" cx="${tx}" cy="${ty}" r="10"/>
+    ${pts.map(dot).join('\n    ')}
+    <text class="townlabel" x="${tx}" y="${(Number(ty) + 26).toFixed(1)}" text-anchor="middle">${esc(place.name)}</text>
+    <g class="compass"><text x="14" y="22">N</text><path d="M14 26 L14 40 M10.5 29.5 L14 26 L17.5 29.5"/></g>
+  </svg>
+  <figcaption>The ${gages.length} nearest gages to ${esc(place.name)}, north up, rings every ${step} miles from town.
+    Colour is the last ${DAYS} days against the 65&deg;F threshold; grey is a gage with no recent daily summaries.</figcaption>
+</figure>`;
+}
+
 export function placePage(place, state) {
   const path = `/near/${place.slug}-${state.code}/`;
   const n = place.gages.length;
@@ -693,6 +778,8 @@ export function placePage(place, state) {
           ? `None of the gages here broke the 65&deg;F threshold in that time.`
           : `${overCount} of the ${withStats.length} gages with recent summaries broke 65&deg;F at least once.`}`
     : `USGS has not published recent daily summaries for the gages near ${esc(place.name)}. The live readings below come straight from them.`}</p>
+
+  ${placeMap(place, state)}
 
   <h2>Nearest gages to ${esc(place.name)}</h2>
   <div class="tablewrap">

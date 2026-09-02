@@ -48,7 +48,7 @@ HTML comments are stripped on read, so this block never reaches the board.
 
 Water-temperature dashboard for fly fishers: pulls live USGS gage readings (parameter 00010) and flags each river safe, caution or stop against the 65°F coldwater-trout recovery threshold, so you know whether to fish a stretch or leave it alone. A state-wide list/map view, a page for every river and every gage with a month of daily readings baked into the markup, and 7-day charts for temperature, discharge, gage height, turbidity and dissolved oxygen — served by nginx-unprivileged on K3s.
 
-Live at https://trout-temps.nickknows.net. Everything talks to USGS directly from the browser, so there is no API key, no database and nothing to keep in sync; Leaflet is vendored into the image, and the CSP is pinned to the USGS, CARTO and Google Analytics origins the pages actually use. A build step reads USGS ahead of time and writes ~2,350 river, gage and index pages so a search for a specific river has something to match — the dashboard alone was one URL whose river names only ever arrived over fetch. The deployment runs unprivileged and read-only on K3s with probes and resource limits, and the page logic — classification, USGS parsing, chart scaling, caching, clustering, river-name parsing and the page templates — is covered by a node --test suite that runs the shipped scripts.
+Live at https://trout-temps.nickknows.net. Everything talks to USGS directly from the browser, so there is no API key, no database and nothing to keep in sync; Leaflet is vendored into the image, and the CSP is pinned to the USGS, CARTO and Google Analytics origins the pages actually use. A build step reads USGS ahead of time and writes ~3,150 river, gage and town pages so a search for a specific river has something to match — the dashboard alone was one URL whose river names only ever arrived over fetch. Each town page opens with a small map drawn straight into the HTML, no tiles and no script, because those are the pages people land on cold. The deployment runs unprivileged and read-only on K3s with probes and resource limits, and the page logic — classification, USGS parsing, chart scaling, caching, clustering, river-name parsing and the page templates — is covered by a node --test suite that runs the shipped scripts.
 
 ## Todos
 
@@ -101,4 +101,4 @@ Live at https://trout-temps.nickknows.net. Everything talks to USGS directly fro
 - [x] A page per fishing town listing every gage within 40 miles, so "near me" has a crawlable equivalent
 - [x] Grey the stale gages down on the map and put them in their own section at the end of the list
 - [x] Cluster the town pages that overlap heavily, so two towns 8 miles apart do not publish the same list twice
-- [ ] Draw the place pages a small static map, since they are the pages people land on cold
+- [x] Draw the place pages a small static map, since they are the pages people land on cold

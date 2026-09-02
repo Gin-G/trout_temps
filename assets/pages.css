@@ -125,3 +125,33 @@ ul.stategrid a { font-size: 18px; }
 td.num.live.safe    { color: var(--safe); }
 td.num.live.caution { color: var(--caution); }
 td.num.live.danger  { color: var(--danger); }
+
+/* --- the place-page map ---------------------------------------------------
+   Drawn into the HTML at build time: no tiles, no script, nothing to wait for
+   on a cold landing. North is up and the rings are miles from town. */
+figure.placemap { margin: 22px 0 26px; max-width: 420px; }
+figure.placemap svg { width: 100%; height: auto; display: block; }
+figure.placemap figcaption {
+  margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--mist);
+}
+.placemap .rings circle { fill: none; stroke: var(--line); stroke-width: 1; }
+.placemap .compass text {
+  fill: var(--mist); font-family: ui-monospace, monospace; font-size: 13px;
+  letter-spacing: 0.08em;
+}
+.placemap .compass path { stroke: var(--mist); stroke-width: 1.2; fill: none; opacity: 0.8; }
+/* Haloed so the name stays legible where a pin sits under it. */
+.placemap .townlabel {
+  fill: var(--paper); font-size: 13px;
+  paint-order: stroke; stroke: var(--abyss); stroke-width: 3px; stroke-linejoin: round;
+}
+/* Hollow, and drawn under the pins: when only one gage names the town the
+   anchor sits exactly on that gage, and a filled marker would hide it. */
+.placemap .town { fill: none; stroke: var(--paper); stroke-width: 1.5; opacity: 0.7; }
+.placemap .pin { stroke: var(--abyss); stroke-width: 1.5; }
+.placemap .pin.safe    { fill: var(--safe); }
+.placemap .pin.caution { fill: var(--caution); }
+.placemap .pin.danger  { fill: var(--danger); }
+.placemap .pin.unknown { fill: var(--mist); opacity: 0.5; }
+.placemap a:hover .pin { stroke: var(--paper); }
+.placemap a:focus-visible .pin { stroke: var(--paper); stroke-width: 2.5; outline: none; }

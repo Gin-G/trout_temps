@@ -153,9 +153,16 @@ export function overlapRatio(a, b) {
 // seven USGS stations are at that town, which is as close to "somewhere people
 // go" as this data gets.
 export function clusterPlaces(places, threshold = MERGE_OVERLAP) {
+  const words = (p) => p.name.split(/\s+/).length;
   const ranked = [...places].sort((a, b) =>
     b.namedBy - a.namedBy
     || b.gages.length - a.gages.length
+    // Then the plainer name. A compound is usually the smaller place -- Cedar
+    // Hill beside Durango, Four Corners beside Cortez -- and when both towns
+    // are named by one gage apiece there is nothing else in the data to go on.
+    // Alphabetical, which this replaces, picked the obscure one half the time.
+    || words(a) - words(b)
+    || a.name.length - b.name.length
     || a.name.localeCompare(b.name));
 
   const absorbed = new Set();

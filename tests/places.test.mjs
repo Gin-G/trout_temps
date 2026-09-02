@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { placeOf, collectPlaces, clusterPlaces, overlapRatio, distanceMi,
          PLACE_RADIUS_MI, PLACE_WIDEN_MI, PLACE_MAX_GAGES, MIN_GAGES } from '../build/places.mjs';
-import { placePage, placeAliasPage, listSentence } from '../build/templates.mjs';
+import { placePage, placeAliasPage, placeMap, listSentence } from '../build/templates.mjs';
 
 // "Near me" needs a browser and a permission prompt. A crawler has neither, so
 // the same question has to exist as URLs — and the town names are already in the
@@ -202,6 +202,25 @@ test('the primary is the best-known name, not the one with the longest list', ()
   assert.deepEqual(out[0].aliases.map((a) => a.name), ['Carver']);
 });
 
+test('a tie goes to the plainer name, not the alphabet', () => {
+  // Durango and Cedar Hill are both named by a single gage and share a list, so
+  // namedBy and length settle nothing. Sorting on name alone handed it to Cedar
+  // Hill for being a C, which is how a famous tailwater town loses its page.
+  const same = [{ id: '1' }, { id: '2' }, { id: '3' }];
+  const out = clusterPlaces([
+    { slug: 'cedar-hill', name: 'Cedar Hill', namedBy: 1, gages: same },
+    { slug: 'durango', name: 'Durango', namedBy: 1, gages: same },
+  ]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].slug, 'durango');
+  // One word beats two before length is consulted at all.
+  const out2 = clusterPlaces([
+    { slug: 'four-corners', name: 'Four Corners', namedBy: 1, gages: same },
+    { slug: 'cortez', name: 'Cortez', namedBy: 1, gages: same },
+  ]);
+  assert.equal(out2[0].slug, 'cortez');
+});
+
 test('towns with genuinely different water both keep a page', () => {
   const out = clusterPlaces([
     { slug: 'estes-park', name: 'Estes Park', namedBy: 3, gages: [{ id: '1' }, { id: '2' }, { id: '3' }] },
@@ -323,4 +342,86 @@ test('a place page states the radius it actually used', () => {
   assert.match(html, new RegExp(`within ${PLACE_WIDEN_MI} miles`));
   assert.doesNotMatch(html, new RegExp(`within ${PLACE_RADIUS_MI} miles`),
     'it must not claim a reach it did not use');
+});
+
+// --- the map ----------------------------------------------------------------
+//
+// Drawn into the HTML at build time. These pages are landed on cold from a
+// search, so the map has to be there when the markup arrives -- no tiles, no
+// script, nothing to wait for.
+
+const mapState = { code: 'co', name: 'Colorado', slug: 'colorado' };
+const mapPlace = (gages, over = {}) => ({
+  slug: 'estes-park', name: 'Estes Park', lat: 40.37, lon: -105.52,
+  namedBy: 1, aliases: [], gages, ...over,
+});
+
+test('the map is drawn into the markup, not fetched', () => {
+  const html = placeMap(mapPlace([
+    gage({ id: '1', miles: 0 }),
+    gage({ id: '2', miles: 8, lat: 40.47, lon: -105.60 }),
+    gage({ id: '3', miles: 14, lat: 40.25, lon: -105.70 }),
+  ]), mapState);
+  assert.match(html, /<svg viewBox="0 0 400 \d+"/);
+  assert.doesNotMatch(html, /<script/, 'nothing to execute');
+  assert.doesNotMatch(html, /https?:\/\//, 'and nothing to fetch');
+  // Every pin is a link to its gage.
+  assert.equal([...html.matchAll(/href="\/gage\//g)].length, 3);
+});
+
+test('every pin carries its verdict colour and a readable title', () => {
+  const html = placeMap(mapPlace([
+    gage({ id: '1', miles: 0, stats: { days: 30, daysOver65: 0, averageF: 55 } }),
+    gage({ id: '2', miles: 8, lat: 40.47, stats: { days: 30, daysOver65: 28, averageF: 68 } }),
+    gage({ id: '3', miles: 14, lat: 40.25, stats: null }),
+  ]), mapState);
+  assert.match(html, /class="pin safe"/);
+  assert.match(html, /class="pin danger"/);
+  assert.match(html, /class="pin unknown"/, 'a gage with no summaries is grey, not green');
+  assert.match(html, /<title>[^<]*8 miles[^<]*<\/title>/);
+  // Degrees are spelled out: an entity inside <title> is read aloud verbatim.
+  assert.doesNotMatch(html, /<title>[^<]*&deg;/);
+});
+
+test('north is up and the town sits at its true position', () => {
+  // Two gages, one due north and one due south of the town at equal distance:
+  // the northern one must land above the southern one.
+  const html = placeMap(mapPlace([
+    gage({ id: 'n', miles: 10, lat: 40.52, lon: -105.52 }),
+    gage({ id: 's', miles: 10, lat: 40.22, lon: -105.52 }),
+  ]), mapState);
+  const ys = [...html.matchAll(/class="pin [a-z]+" cx="([\d.]+)" cy="([\d.]+)"/g)]
+    .map((m) => Number(m[2]));
+  assert.equal(ys.length, 2);
+  assert.ok(ys[0] < ys[1], 'the northern gage is drawn higher up');
+});
+
+test('the map is never taller than it is wide', () => {
+  // Two gages on the doorstep and one twenty miles downstream is the shape that
+  // frames as a near-empty column. It is meant to be a small map.
+  const strung = [
+    gage({ id: '1', miles: 0 }),
+    gage({ id: '2', miles: 0.4, lat: 40.375, lon: -105.52 }),
+    gage({ id: '3', miles: 20, lat: 40.08, lon: -105.52 }),
+  ];
+  const h = Number(placeMap(mapPlace(strung), mapState).match(/viewBox="0 0 400 (\d+)"/)[1]);
+  assert.ok(h <= 400, `height ${h} must not exceed the 400 width`);
+  assert.ok(h >= 240, `height ${h} must not collapse to a strip either`);
+});
+
+test('a place with nothing to plot draws no map', () => {
+  assert.equal(placeMap(mapPlace([gage({ id: '1', miles: 0 })]), mapState), '');
+  assert.equal(placeMap(mapPlace([
+    gage({ id: '1', lat: NaN, lon: NaN }), gage({ id: '2', lat: NaN, lon: NaN }),
+  ]), mapState), '');
+});
+
+test('the place page carries the map above the table', () => {
+  const html = placePage(mapPlace([
+    gage({ id: '1', miles: 0 }),
+    gage({ id: '2', miles: 8, lat: 40.47, lon: -105.60 }),
+    gage({ id: '3', miles: 14, lat: 40.25, lon: -105.70 }),
+  ]), mapState);
+  assert.ok(html.indexOf('placemap') < html.indexOf('<table'), 'map first, then the detail');
+  assert.match(html, /role="img"[\s\S]*?aria-label="Map of the 3 gages nearest Estes Park/);
 });
