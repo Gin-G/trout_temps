@@ -235,7 +235,7 @@ function gageFacts(g) {
 
 // --- gage page --------------------------------------------------------------
 
-export function gagePage(g, river, state, siblings) {
+export function gagePage(g, river, state, siblings, nearby = []) {
   const path = `/gage/${g.id}/`;
   const title = `${g.station} Water Temperature — Live USGS Gage`;
   const desc = g.stats && g.stats.days
@@ -316,6 +316,16 @@ export function gagePage(g, river, state, siblings) {
   water temperature as parameter 00010 every 15 to 60 minutes. This page reads that feed live and scores it
   against 65&deg;F, the temperature above which catch-and-release mortality climbs sharply for trout.</p>
   ${gageFacts(g)}
+  ${nearby.length ? `<h2>Other water near ${esc(g.station)}</h2>
+  <p>The nearest gages on other rivers, closest first, scored on the last ${DAYS} days against the
+  65&deg;F threshold. On a hot week every one of them may be warm too &mdash; that is worth knowing before
+  the drive, and the higher-elevation reaches are usually the last to go.</p>
+  <ul class="linklist nearlist">${nearby.map((n) => {
+    const v = periodVerdict(n.stats);
+    return `<li><a href="/gage/${esc(n.id)}/">${esc(n.station)}</a>
+      <span class="muted">on ${esc(n.river)} · ${Math.round(n.miles)} mi</span>
+      ${v ? `<span class="badge ${v.cls}">${v.label}</span>` : '<span class="muted">no daily summaries</span>'}</li>`;
+  }).join('')}</ul>` : ''}
   ${others.length ? `<h2>Other gages on ${esc(river.name)}</h2>
   <ul class="linklist">${others.map((s) => `<li><a href="/gage/${s.id}/">${esc(s.station)}</a>${s.elevationFt != null ? ` <span class="muted">${Math.round(s.elevationFt).toLocaleString()} ft</span>` : ''}</li>`).join('')}</ul>` : ''}
   <p class="more"><a href="/river/${state.slug}/${river.slug}/">All ${esc(river.name)} temperatures</a>

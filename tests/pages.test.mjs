@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { riverPage, gagePage, statePage, riversIndexPage, periodVerdict, esc } from '../build/templates.mjs';
+import { readPage } from './harness.mjs';
+import { nearestGages } from '../build/places.mjs';
 
 const state = { code: 'co', name: 'Colorado', slug: 'colorado' };
 
@@ -237,4 +239,64 @@ test('missing extremes never print as null', () => {
   const html = riverPage({ slug: 'x-creek', name: 'X Creek', gages: [gage({ stats: s })], agg: s }, state);
   assert.doesNotMatch(html.slice(html.indexOf('<body>')), /null|undefined|NaN/);
   assert.match(html, /averaged 58\.3&deg;F/);
+});
+
+// --- the way in --------------------------------------------------------------
+
+test('the dashboard links to both generated indexes', () => {
+  // The homepage is the only page every crawl starts from, and for a while it
+  // named /rivers/ twice and /near/ not at all -- which left 609 town pages and
+  // every gage page a level deeper than they needed to be. "Near me" is not a
+  // substitute: it needs a permission prompt, and a crawler has no location.
+  const html = readPage('trout_temps.html');
+  assert.match(html, /href="\/rivers\/"/, 'browse by river');
+  assert.match(html, /href="\/near\/"/, 'browse by town');
+});
+
+// --- gage pages are not dead ends --------------------------------------------
+
+const ng = (over = {}) => ({
+  id: '1', station: 'Big Thompson below Moraine Park', river: 'Big Thompson River',
+  riverSlug: 'big-thompson-river', lat: 40.37, lon: -105.52, elevationFt: 8000,
+  stats: null, ...over,
+});
+
+test('nearby gages skip the same river and keep one per drainage', () => {
+  const here = ng();
+  const out = nearestGages(here, [
+    here,
+    ng({ id: '2', lat: 40.38 }),                                          // same river
+    ng({ id: '3', river: 'Fall River', riverSlug: 'fall-river', lat: 40.42 }),
+    ng({ id: '4', river: 'Fall River', riverSlug: 'fall-river', lat: 40.43 }), // same drainage
+    ng({ id: '5', river: 'Colorado River', riverSlug: 'colorado-river', lat: 40.25, lon: -105.82 }),
+  ]);
+  assert.deepEqual(out.map((g) => g.id), ['3', '5']);
+  assert.ok(out[0].miles < out[1].miles, 'nearest first');
+});
+
+test('nearby gages stay within range and cope with missing coordinates', () => {
+  const here = ng();
+  assert.equal(nearestGages(here, [
+    ng({ id: '9', river: 'Animas River', riverSlug: 'animas-river', lat: 37.27, lon: -107.88 }),
+  ]).length, 0, '300 miles away is a different trip');
+  assert.equal(nearestGages(ng({ lat: NaN }), [ng({ id: '2' })]).length, 0);
+});
+
+test('a gage page links sideways, not only up', () => {
+  // Every gage page is a leaf: before this it led to its river, its state and
+  // nowhere else, which is a dead end for a reader whose water just came back
+  // at 68 degrees.
+  const g = { id: '1', station: 'Big Thompson below Moraine Park', stats: null, elevationFt: 8000 };
+  const near = [{ id: '77', station: 'Fall River at Aspenglen', river: 'Fall River',
+                  miles: 12, stats: { days: 30, daysOver65: 0, averageF: 54 } }];
+  const html = gagePage(g, { name: 'Big Thompson River', slug: 'big-thompson-river' }, state, [g], near);
+  assert.match(html, /<h2>Other water near/);
+  assert.match(html, /href="\/gage\/77\/"/);
+  assert.match(html, /12 mi/);
+  assert.match(html, /badge safe/, 'the verdict travels with the link');
+  // The heading must not promise cold water it has not got.
+  const warm = gagePage(g, { name: 'Big Thompson River', slug: 'big-thompson-river' }, state, [g],
+    [{ id: '78', station: 'Warm Creek', river: 'Warm Creek', miles: 9,
+       stats: { days: 30, daysOver65: 30, averageF: 71 } }]);
+  assert.doesNotMatch(warm, /<h2>Cold water near/);
 });

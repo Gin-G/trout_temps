@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STATES, collectState, groupRivers, DAYS } from './usgs.mjs';
 import { slugify } from './rivers.mjs';
-import { collectPlaces } from './places.mjs';
+import { collectPlaces, nearestGages } from './places.mjs';
 import { gagePage, riverPage, statePage, riversIndexPage, placePage, placesIndexPage,
          placeAliasPage, ORIGIN, esc } from './templates.mjs';
 
@@ -159,7 +159,8 @@ async function main() {
       for (const g of river.gages) {
         const gagePath = `/gage/${g.id}/`;
         await write(args.out, path.join(gagePath, 'index.html'),
-          gagePage(g, { name: river.name, slug: river.slug }, stateRef, river.gages));
+          gagePage(g, { name: river.name, slug: river.slug }, stateRef, river.gages,
+                   nearestGages(g, state.gages)));
         urls.gage.push({ loc: gagePath, priority: '0.6', lastmod: g.stats?.lastDate || undefined });
         pages++;
       }

@@ -234,3 +234,26 @@ export function collectPlaces(gages) {
   }
   return clusterPlaces(places);
 }
+
+// The nearest gages to one gage, on other rivers.
+//
+// A gage page is the deepest page on the site and, until this, a dead end: it
+// led up to its river and its state and nowhere else. That is a crawl problem
+// for the ~1,450 of them, but mostly it is a reader problem -- somebody who has
+// just learned their water is 68 degrees wants to know what is cold nearby, and
+// the answer is rarely on the same river. Same-river gages are left out because
+// the page already lists those under their own heading.
+export function nearestGages(gage, all, { limit = 6, maxMiles = 45 } = {}) {
+  if (!Number.isFinite(gage.lat) || !Number.isFinite(gage.lon)) return [];
+  const seenRiver = new Set();
+  return all
+    .filter((g) => g.id !== gage.id
+      && g.riverSlug !== gage.riverSlug
+      && Number.isFinite(g.lat) && Number.isFinite(g.lon))
+    .map((g) => ({ ...g, miles: distanceMi(gage.lat, gage.lon, g.lat, g.lon) }))
+    .filter((g) => g.miles <= maxMiles)
+    .sort((a, b) => a.miles - b.miles)
+    // One per river: six gages strung down the same creek is not six options.
+    .filter((g) => !seenRiver.has(g.riverSlug) && seenRiver.add(g.riverSlug))
+    .slice(0, limit);
+}

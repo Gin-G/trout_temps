@@ -76,6 +76,9 @@ ul.linklist { list-style: none; margin: 10px 0 20px; }
 ul.linklist li { padding: 7px 0; border-bottom: 1px solid var(--line); }
 ul.linklist a { color: var(--paper); text-decoration: none; }
 ul.linklist a:hover { color: var(--safe); }
+/* Nearby gages carry a verdict, so the row needs to breathe and wrap. */
+ul.nearlist li { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+ul.nearlist .badge { margin-left: auto; }
 
 /* --- index pages --------------------------------------------------------- */
 .alphaindex {

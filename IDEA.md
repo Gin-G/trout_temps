@@ -102,3 +102,6 @@ Live at https://trout-temps.nickknows.net. Everything talks to USGS directly fro
 - [x] Grey the stale gages down on the map and put them in their own section at the end of the list
 - [x] Cluster the town pages that overlap heavily, so two towns 8 miles apart do not publish the same list twice
 - [x] Draw the place pages a small static map, since they are the pages people land on cold
+- [x] Link /near/ from the dashboard, which named /rivers/ twice and the town index not at all
+- [x] Link every gage page to the nearest gages on other rivers, so the deepest pages are not dead ends
+- [ ] Watch Search Console Performance for the first impressions on a river query, and see which of the three page types earns them
