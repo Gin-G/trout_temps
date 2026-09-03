@@ -97,3 +97,33 @@ test('a name is only complete if its LAST word says what kind of water it is', (
   assert.equal(riverName('WILLIAMS FORK BLW WILLIAMS FORK RES, CO', 'co'), 'Williams Fork');
   assert.equal(riverName('BLUE MESA RESERVOIR NR GUNNISON, CO', 'co'), 'Blue Mesa Reservoir');
 });
+
+test('a measurement point is not part of the river name', () => {
+  // USGS marks the spot without a preposition too. Left in, these fragmented one
+  // river into nine pages: "Vermilion River 1800 FT River", "Vermilion River .78
+  // Mi River", and so on, none of which anybody searches for.
+  assert.equal(riverName('VERMILION RIVER 1800 FT ABV MOUTH', 'oh'), 'Vermilion River');
+  assert.equal(riverName('VERMILION RIVER .78 MI', 'oh'), 'Vermilion River');
+  assert.equal(riverName('HILTON CANYON CREEK 0.25 MI', 'nm'), 'Hilton Canyon Creek');
+  assert.equal(riverName('FANNO CREEK PONDED SITE 5', 'or'), 'Fanno Creek');
+  // "@" chains the outfall and the receiving water onto the creek's own name.
+  assert.equal(riverName('KINNICKINNIC RIVER @ SOUTH 11TH STREET @ MILWAUKEE RIVER', 'wi'),
+    'Kinnickinnic River');
+  assert.equal(riverName('POPE BROOK TRIBUTARY (W-9)', 'vt'), 'Pope Brook Tributary');
+});
+
+test('a real branch of a river keeps its own page', () => {
+  // The offset goes, the channel stays: these are genuinely different water.
+  assert.equal(riverName('VERMILION RIVER NORTH CHANNEL 0.55 MI', 'oh'),
+    'Vermilion River North Channel');
+  assert.equal(riverName('MIDDLE FORK SOUTH PLATTE RIVER NR GRANT, CO', 'co'),
+    'Middle Fork South Platte River');
+});
+
+test('a number that is not an offset is left alone', () => {
+  // Only a number with a unit after it is a distance; "11th Street" is not.
+  assert.equal(riverName('BIG THOMPSON BL MORAINE PARK NR ESTES PARK, CO', 'co'),
+    'Big Thompson River');
+  assert.equal(riverName('CACHE LA POUDRE R ABV N 11TH AVE AT GREELEY, CO', 'co'),
+    'Cache la Poudre River');
+});

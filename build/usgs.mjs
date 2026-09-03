@@ -54,6 +54,14 @@ function parseRdb(text) {
   });
 }
 
+// The stream sites in a state, keyed by site number.
+//
+// This is also the allow-list. The instantaneous-values service answers with
+// everything that reports parameter 00010, which includes groundwater wells,
+// reservoirs and urban drains -- and a well called "29N.12W.22.1321A BLM-15 CRN
+// WELL" parses into a river name of exactly that shape, so for a while the site
+// published a hundred pages titled "... Well River". A trout-stream site should
+// only carry what USGS itself types as a stream.
 async function fetchSites(state) {
   const url = `${BASE}/site/?format=rdb&stateCd=${state}&siteOutput=expanded`
             + `&siteType=ST&hasDataTypeCd=iv&siteStatus=active`;
@@ -160,12 +168,22 @@ async function fetchDailyStats(state) {
 
 // --- assembly ---------------------------------------------------------------
 
+// Keep the gages USGS types as streams.
+//
+// Fail open: if the site service returns nothing at all -- an outage, a schema
+// change -- publish what we have rather than silently emptying a state. A build
+// that quietly ships zero pages is worse than one that ships a few wells.
+export function onlyStreams(gages, sites) {
+  if (!sites || sites.size === 0) return gages;
+  return new Map([...gages].filter(([id]) => sites.has(id)));
+}
+
 export async function collectState({ code, name }) {
   const [sites, gages, stats] = await Promise.all([
     fetchSites(code), fetchGages(code), fetchDailyStats(code),
   ]);
   const rows = [];
-  for (const [id, g] of gages) {
+  for (const [id, g] of onlyStreams(gages, sites)) {
     const meta = sites.get(id) || {};
     const river = riverName(g.rawName, code);
     if (!river) continue;

@@ -50,7 +50,15 @@ const LOCATOR_WORDS = new Map(Object.entries({
 // is on the LAST word, not anywhere in the name: "North Fork Gunnison" contains
 // "Fork" but is still short a noun, and leaving it alone split it from the gages
 // named "NF GUNNISON RIVER" into a second, near-empty river page.
-const WATERCOURSE = /(?:^|\s)(River|Creek|Fork|Branch|Brook|Run|Bayou|Slough|Ditch|Canal|Drain|Wash|Kill|Stream|Lake|Reservoir|Bay|Sound|Harbor|Canyon|Arroyo|Rio|Outlet|Spring|Springs|Gulch|Draw|Coulee|Basin|Pond|Inlet|Channel|Aqueduct|Flume|Tailrace|Race|Water|Waters)$/i;
+const WATERCOURSE = /(?:^|\s)(River|Creek|Fork|Branch|Brook|Run|Bayou|Slough|Ditch|Canal|Drain|Wash|Kill|Stream|Lake|Reservoir|Bay|Sound|Harbor|Canyon|Arroyo|Rio|Outlet|Spring|Springs|Gulch|Draw|Coulee|Basin|Pond|Inlet|Channel|Aqueduct|Flume|Tailrace|Race|Water|Waters|Tributary)$/i;
+
+// USGS also marks the spot on the river without a preposition: a distance
+// offset ("VERMILION RIVER 1800 FT", "HILTON CANYON CREEK 0.25 MI"), a numbered
+// sampling point ("FANNO CREEK PONDED SITE 5"), or an "@" chain naming the
+// outfall and the receiving water. None of that is the river's name, and left in
+// it fragments one river into nine pages.
+const DISTANCE_UNIT = /^(FT|FEET|MI|MILE|MILES|KM|YD|YDS|M\.)$/;
+const OFFSET_NUMBER = /^\.?\d+(\.\d+)?$/;
 
 // Left lowercase inside a name, never at the start of one.
 const MINOR = new Set(['of', 'the', 'la', 'las', 'los', 'el', 'de', 'del', 'du', 'at', 'on', 'and']);
@@ -110,6 +118,12 @@ export function splitStation(stationName, state) {
   for (let i = 1; i < tokens.length; i++) {
     const t = bare(i);
     if (LOCATORS.has(t) || (LOCATOR_OF.has(t) && bare(i + 1) === 'OF')) { cut = i; break; }
+    // "@" chains the outfall and the receiving water onto the creek's name.
+    if (t === '@' || t.startsWith('(')) { cut = i; break; }
+    // A number with a unit after it is how far up the reach the gage sits.
+    if (OFFSET_NUMBER.test(t) && DISTANCE_UNIT.test(bare(i + 1))) { cut = i; break; }
+    // A numbered sampling point, not a place.
+    if (t === 'PONDED' || (t === 'SITE' && OFFSET_NUMBER.test(bare(i + 1)))) { cut = i; break; }
   }
   return { head: tokens.slice(0, cut), tail: tokens.slice(cut) };
 }
