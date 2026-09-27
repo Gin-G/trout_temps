@@ -1066,8 +1066,9 @@ function renderMap(rows) {
   mapRows = rows.filter(d => !isNaN(d.lat) && !isNaN(d.lon));
   if (!map) {
     map = L.map('map', { scrollWheelZoom: false }).setView([39, -105.5], 6);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19,
+    // CARTO has required a key since Sept 2026; it ships in every tile URL, so it is public by design.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_3yqw_1_aaf2f6fd7026cdaead22efd0', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO', maxZoom: 19,
     }).addTo(map);
     markerLayer = L.layerGroup().addTo(map);
     // Re-cluster whenever the pixel distances between gages change.
